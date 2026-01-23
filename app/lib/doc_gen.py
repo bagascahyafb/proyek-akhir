@@ -35,6 +35,12 @@ def generate_ats_docx(data, language="English"):
     doc = Document()
     set_margins(doc)
     
+    # --- FIX 1: SET GLOBAL FONT (Biar gak perlu set ulang tiap paragraf) ---
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Times New Roman'
+    font.size = Pt(11)
+    
     lang_map = {
         "summary": "Professional Summary" if language == "English" else "Ringkasan Profesional",
         "exp": "Work Experience" if language == "English" else "Pengalaman Kerja",
@@ -49,24 +55,25 @@ def generate_ats_docx(data, language="English"):
     # 1. HEADER
     h1 = doc.add_paragraph()
     h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Nama besar dan tebal
     name_run = h1.add_run(data['Personal_Info']['Nama'])
     name_run.bold = True
     name_run.font.size = Pt(20)
     name_run.font.name = 'Times New Roman'
     
+    # Kontak
     contact_list = [x for x in [data['Personal_Info']['HP'], data['Personal_Info']['Email'], data['Personal_Info']['LinkedIn'], data['Personal_Info']['Alamat']] if x]
     h2 = doc.add_paragraph(" | ".join(contact_list))
     h2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    h2.style.font.name = 'Times New Roman'
-    h2.style.font.size = Pt(10)
+    # Hapus manual style font name disini karena udah ikut global, cukup size aja
+    h2.runs[0].font.size = Pt(10) 
     
     # 2. SUMMARY
     if data['Personal_Info']['Summary']:
         add_section_header(doc, lang_map['summary'])
         p = doc.add_paragraph(data['Personal_Info']['Summary'])
-        p.style.font.name = 'Times New Roman'
-        p.style.font.size = Pt(11)
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        # Gak perlu set font name/italic lagi, otomatis ikut Normal (TNR Regular)
 
     # 3. EXPERIENCE
     if data['Experience']:
@@ -74,23 +81,30 @@ def generate_ats_docx(data, language="English"):
         for item in data['Experience']:
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(0)
+            
+            # Posisi (Bold)
             run_pos = p.add_run(f"{item['Posisi']}")
             run_pos.bold = True
-            run_pos.font.name = 'Times New Roman'
-            run_comp = p.add_run(f" | {item['Perusahaan']}")
-            run_comp.font.name = 'Times New Roman'
             
-            p_date = doc.add_paragraph(item['Durasi'])
+            # Perusahaan
+            p.add_run(f" | {item['Perusahaan']}")
+            
+            # --- FIX 2: TANGGAL ITALIC (Pake add_run biar gak ngerusak global) ---
+            p_date = doc.add_paragraph()
             p_date.paragraph_format.space_after = Pt(2)
-            p_date.style.font.name = 'Times New Roman'
-            p_date.style.font.italic = True
+            run_date = p_date.add_run(item['Durasi'])
+            run_date.italic = True # Cuma run ini yang miring!
+            run_date.font.size = Pt(10)
             
+            # Deskripsi
             if 'Deskripsi' in item:
                 for line in item['Deskripsi'].split('\n'):
                     if line.strip():
+                        # Style 'List Bullet' biasanya aman, tapi kita pastikan font-nya
                         p_desc = doc.add_paragraph(line.strip().replace('- ', ''), style='List Bullet')
                         p_desc.paragraph_format.space_after = Pt(0)
-                        p_desc.style.font.name = 'Times New Roman'
+                        if p_desc.runs:
+                            p_desc.runs[0].font.name = 'Times New Roman'
 
     # 4. PROJECTS
     if data['Projects']:
@@ -98,9 +112,9 @@ def generate_ats_docx(data, language="English"):
         for item in data['Projects']:
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(0)
+            
             run_name = p.add_run(f"{item['Nama_Proyek']}")
             run_name.bold = True
-            run_name.font.name = 'Times New Roman'
             
             meta = []
             if item.get('Role'): meta.append(item['Role'])
@@ -112,7 +126,8 @@ def generate_ats_docx(data, language="English"):
                     if line.strip():
                         p_desc = doc.add_paragraph(line.strip().replace('- ', ''), style='List Bullet')
                         p_desc.paragraph_format.space_after = Pt(0)
-                        p_desc.style.font.name = 'Times New Roman'
+                        if p_desc.runs:
+                            p_desc.runs[0].font.name = 'Times New Roman'
 
     # 5. EDUCATION
     if data['Education']:
@@ -120,37 +135,38 @@ def generate_ats_docx(data, language="English"):
         for item in data['Education']:
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(0)
+            
             run_uni = p.add_run(item['Institusi'])
             run_uni.bold = True
-            run_uni.font.name = 'Times New Roman'
-            run_year = p.add_run(f"  ({item['Tahun_Lulus']})")
-            run_year.font.name = 'Times New Roman'
+            
+            p.add_run(f"  ({item['Tahun_Lulus']})")
             
             p2 = doc.add_paragraph()
             p2.paragraph_format.space_after = Pt(6)
+            
+            # --- FIX 3: GELAR ITALIC ---
             run_major = p2.add_run(f"{item['Gelar']} in {item['Jurusan']}")
             run_major.italic = True
-            run_major.font.name = 'Times New Roman'
+            
             if item['IPK']: p2.add_run(f" | GPA: {item['IPK']}")
 
-    # 6. SKILLS (HARD & SOFT)
+    # 6. SKILLS
     if data['Skills_Hard'] or data['Skills_Soft']:
         add_section_header(doc, "Skills")
         if data['Skills_Hard']:
             p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(0)
             runner = p.add_run(f"{lang_map['hard_skill']}: ")
             runner.bold = True
-            runner.font.name = 'Times New Roman'
-            p.add_run(", ".join(data['Skills_Hard'])).font.name = 'Times New Roman'
+            p.add_run(", ".join(data['Skills_Hard']))
         
         if data['Skills_Soft']:
             p = doc.add_paragraph()
             runner = p.add_run(f"{lang_map['soft_skill']}: ")
             runner.bold = True
-            runner.font.name = 'Times New Roman'
-            p.add_run(", ".join(data['Skills_Soft'])).font.name = 'Times New Roman'
+            p.add_run(", ".join(data['Skills_Soft']))
 
-    # 7. AWARDS & CERTIFICATIONS
+    # 7. AWARDS
     items = []
     for c in data['Certifications']: items.append(f"{c['Nama']} - {c['Penerbit']} ({c['Tahun']})")
     for a in data['Awards']: items.append(f"Award: {a['Nama_Award']} - {a['Pemberi']} ({a['Tahun']})")
@@ -160,6 +176,7 @@ def generate_ats_docx(data, language="English"):
         for it in items:
             p = doc.add_paragraph(it, style='List Bullet')
             p.paragraph_format.space_after = Pt(0)
-            p.style.font.name = 'Times New Roman'
+            if p.runs:
+                p.runs[0].font.name = 'Times New Roman'
 
     return doc

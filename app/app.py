@@ -7,7 +7,7 @@ from lib.doc_gen import generate_ats_docx
 # ==============================================================================
 # 1. KONFIGURASI & SESSION STATE
 # ==============================================================================
-st.set_page_config(page_title="GenCVATS Pro", layout="wide")
+st.set_page_config(page_title="GenCVATS", layout="wide")
 
 # Inisialisasi Session State
 default_keys = [

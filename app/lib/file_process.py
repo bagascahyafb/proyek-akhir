@@ -5,7 +5,7 @@ import os
 import base64
 import streamlit as st
 from thefuzz import fuzz
-POPPLER_PATH = r"C:/Users/ibuba/Kuliah/Proyek Akhir/Aplikasi/bin/poppler-25.07.0/Library/bin" 
+POPPLER_PATH = r"PROYEK-AKHIR/bin/poppler-25.07.0/Library/bin" 
 
 def process_uploaded_file(uploaded_file):
     try:

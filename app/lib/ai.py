@@ -46,10 +46,6 @@ def run_ai_ocr(image, jenis):
         return None
 
 def enhance_final_cv_llm(data, language="English"):
-    """
-    REQ #3: Enhance Final CV.
-    Mengambil seluruh data JSON, lalu memoles bahasa agar profesional & konsisten.
-    """
     client = get_client()
     
     prompt = f"""
@@ -60,7 +56,7 @@ def enhance_final_cv_llm(data, language="English"):
     
     TUGAS:
     1. Perbaiki tata bahasa dan ejaan.
-    2. Ubah deskripsi pengalaman/proyek menjadi kalimat aksi yang kuat (Action Verbs).
+    2. Ubah deskripsi pengalaman/proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result), jangan mengarang data.
     3. Pastikan Summary menarik dan profesional.
     4. Jangan mengubah fakta (Nama, Tahun, Universitas), hanya perbaiki cara penyampaiannya.
     5. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain.

@@ -1,0 +1,28 @@
+# --- Python & Bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Environment & Virtual Envs ---
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+bin/
+
+# --- Streamlit ---
+.streamlit/
+.streamlit/secrets.toml
+
+# --- IDE & Editor Settings (Biar settingan VSCode lo gak kebawa) ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Operating System Files ---
+.DS_Store
+Thumbs.db
