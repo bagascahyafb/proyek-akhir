@@ -1,7 +1,6 @@
 import json
 from openai import OpenAI
 from lib.file_process import encode_image
-import streamlit as st
 
 LM_STUDIO_URL = "http://127.0.0.1:1234/v1"
 API_KEY = "lm-studio"
@@ -56,13 +55,13 @@ def enhance_final_cv_llm(data, language="English"):
     
     TUGAS:
     1. Perbaiki tata bahasa dan ejaan.
-    2. Ubah deskripsi pengalaman/proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result), jangan mengarang data.
+    2. Ubah deskripsi pengalaman/proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result).
     3. Pastikan Summary menarik dan profesional.
     4. Jangan mengubah fakta (Nama, Tahun, Universitas), hanya perbaiki cara penyampaiannya.
     5. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain.
     
     OUTPUT:
-    Kembalikan JSON yang strukturnya SAMA PERSIS dengan input, tapi isinya sudah dipoles.
+    Kembalikan JSON yang strukturnya SAMA PERSIS dengan input, tapi isinya sudah dipoles, jangan mengarang data.
     Hanya output JSON, tanpa teks lain.
     """
     
@@ -75,5 +74,5 @@ def enhance_final_cv_llm(data, language="English"):
         content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
         return json.loads(content)
     except Exception as e:
-        st.error(f"Gagal melakukan enhance AI: {e}")
+        print(f"Gagal melakukan enhance AI: {e}")
         return data # Kembalikan data asli kalau error

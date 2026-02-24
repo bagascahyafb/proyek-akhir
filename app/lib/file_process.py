@@ -3,7 +3,6 @@ from PIL import Image
 import io
 import os
 import base64
-import streamlit as st
 from thefuzz import fuzz
 POPPLER_PATH = r"PROYEK-AKHIR/bin/poppler-25.07.0/Library/bin" 
 
@@ -19,7 +18,7 @@ def process_uploaded_file(uploaded_file):
         else:
             return Image.open(uploaded_file)
     except Exception as e:
-        st.error(f"Gagal memproses file: {e}")
+        print(f"Gagal memproses file: {e}")
         return None
 
 def encode_image(pil_image):
