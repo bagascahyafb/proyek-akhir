@@ -31,7 +31,7 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
     formData.append("target_name", cvData.Personal_Info.Nama);
 
     // 1. GANTI apiUrl PAKE DOMAIN NGROK LO
-    const apiUrl = "https://fungistatic-luanna-aphylly.ngrok-free.dev"; 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
       // 2. TEMBAK KE apiUrl & TAMBAHIN HEADER BYPASS NGROK

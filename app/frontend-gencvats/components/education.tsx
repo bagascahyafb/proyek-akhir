@@ -31,7 +31,7 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
     formData.append("jenis", "ijazah");
     formData.append("target_name", cvData.Personal_Info.Nama);
 
-    const apiUrl = "https://fungistatic-luanna-aphylly.ngrok-free.dev"; 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"; 
 
     try {
       const res = await axios.post(`${apiUrl}/extract-ocr`, formData, { 

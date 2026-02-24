@@ -17,7 +17,7 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     setLoading(true);
     setStatusMsg("Sedang menghubungi AI untuk memoles CV Anda... (Bisa memakan waktu 10-20 detik)");
 
-    const apiUrl = "https://fungistatic-luanna-aphylly.ngrok-free.dev"; 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
         const res = await axios.post(`${apiUrl}/enhance-cv`, cvData,  {
@@ -42,7 +42,7 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     setLoading(true);
     setStatusMsg("Sedang men-generate file .docx...");
     
-    const apiUrl = "https://fungistatic-luanna-aphylly.ngrok-free.dev"; 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
       const res = await axios.post(`${apiUrl}/generate-docx`, cvData, {
