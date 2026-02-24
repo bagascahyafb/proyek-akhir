@@ -22,7 +22,6 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     try {
         const res = await axios.post(`${apiUrl}/enhance-cv`, cvData,  {
           headers: { 
-            "Content-Type": "multipart/form-data",
             "ngrok-skip-browser-warning": "true"
         } 
         });
@@ -47,7 +46,6 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     try {
       const res = await axios.post(`${apiUrl}/generate-docx`, cvData, {
         headers: { 
-          "Content-Type": "multipart/form-data",
           responseType: "blob",
           "ngrok-skip-browser-warning": "true"
       } 
