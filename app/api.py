@@ -137,7 +137,6 @@ async def extract_ocr(
                 pass
 
 # --- ENDPOINT GENERATE DOCX ---
-# --- ENDPOINT GENERATE DOCX ---
 @app.post("/generate-docx")
 async def generate_docx(data: CVData):
     try:
@@ -155,7 +154,6 @@ async def generate_docx(data: CVData):
         safe_name = nama.replace(' ', '_') if nama else "User"
         filename = f"CV_{safe_name}_{language}.docx"
         
-        # --- PERBAIKAN DI SINI ---
         # Gunakan Response biasa dan panggil getvalue() untuk mengambil seluruh byte sekaligus
         return Response(
             content=byte_io.getvalue(),

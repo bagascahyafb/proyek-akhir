@@ -37,6 +37,7 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
   };
 
   // Handler Download
+// Handler Download
   const handleDownload = async () => {
     setLoading(true);
     setStatusMsg("Sedang men-generate file .docx...");
@@ -44,13 +45,20 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
+      // 1. UBAH responseType JADI arraybuffer
       const res = await axios.post(`${apiUrl}/generate-docx`, cvData, {
+        responseType: "arraybuffer", 
         headers: { 
-          responseType: "blob",
           "ngrok-skip-browser-warning": "true"
-      } 
+        } 
       });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+
+      // 2. BUNGKUS RAW BINER-NYA JADI BLOB DOCX SECARA EKSPLISIT
+      const blob = new Blob([res.data], { 
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+      });
+      
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `CV_${cvData.Personal_Info.Nama.replace(/\s+/g, '_')}_${cvData.Language}.docx`);
@@ -58,7 +66,6 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
       link.click();
       link.remove();
       
-      // Opsional: Kasih tau user kalo udah kedownload
       showAlert("Berhasil", "✅ CV Anda berhasil diunduh. Silakan cek folder Download.");
 
     } catch (error) {
