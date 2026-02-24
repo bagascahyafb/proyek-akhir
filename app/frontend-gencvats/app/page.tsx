@@ -5,7 +5,7 @@ import Image from "next/image";
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-purple-800 flex flex-col items-center justify-center text-white px-4">
-      <div className="max-w-3xl text-center">
+      <div className="mt-16 md:mt-0 max-w-3xl text-center">
       <h1 className="text-5xl font-extrabold mb-6 tracking-tight flex items-center justify-center gap-4">
         <Image src="/logo.png" alt="Logo GenCVATS" width={60} height={60} />
         GenCVATS

@@ -3,10 +3,12 @@ import shutil
 import traceback
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import io
-
+from pdf2image import convert_from_path
+from PIL import Image
 # Import library logic
 from lib.ai import run_ai_ocr, enhance_final_cv_llm
 from lib.doc_gen import generate_ats_docx
@@ -53,9 +55,6 @@ async def extract_ocr(
             shutil.copyfileobj(file.file, f)
             
         print(f"📂 Processing: {file.filename} | Type: {file.content_type}")
-        
-        from pdf2image import convert_from_path
-        from PIL import Image
         
         image_to_process = None
         
@@ -138,41 +137,35 @@ async def extract_ocr(
                 pass
 
 # --- ENDPOINT GENERATE DOCX ---
+# --- ENDPOINT GENERATE DOCX ---
 @app.post("/generate-docx")
 async def generate_docx(data: CVData):
     try:
         cv_dict = data.model_dump()
         
-        # 1. Ambil value Language (jika key tidak ada, return None)
         raw_language = cv_dict.pop("Language", None)
-        
-        # 2. Logic Default yang Lebih Kuat
-        # Jika raw_language itu None, string kosong "", atau false -> Pakai "English"
         language = raw_language if raw_language else "English"
         
         doc = generate_ats_docx(cv_dict, language)
         
         byte_io = io.BytesIO()
         doc.save(byte_io)
-        byte_io.seek(0)
         
-        # Ambil nama aman, default "User" jika kosong
         nama = cv_dict.get('Personal_Info', {}).get('Nama', '')
         safe_name = nama.replace(' ', '_') if nama else "User"
-        
         filename = f"CV_{safe_name}_{language}.docx"
         
-        return StreamingResponse(
-            byte_io, 
+        # --- PERBAIKAN DI SINI ---
+        # Gunakan Response biasa dan panggil getvalue() untuk mengambil seluruh byte sekaligus
+        return Response(
+            content=byte_io.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            # PENTING: Tambahkan tanda kutip pada filename="{filename}"
-            # Ini mencegah error browser jika ada karakter aneh di nama file
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 # --- ENDPOINT ENHANCE ---
 @app.post("/enhance-cv")
 async def enhance_cv(data: CVData):
