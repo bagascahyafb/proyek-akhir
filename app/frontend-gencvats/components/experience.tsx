@@ -7,7 +7,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
   const [loading, setLoading] = useState(false);
   
   const [expForm, setExpForm] = useState({ pos: "", comp: "", dur: "", desc: "" });
-  const [projForm, setProjForm] = useState({ name: "", role: "", stack: "", desc: "" });
+  const [projForm, setProjForm] = useState({ name: "", role: "", stack: "", duration: "", desc: "" });
   
   // PANGGIL HOOK MODAL
   const { modalProps, showAlert, showConfirm } = useModal();
@@ -41,9 +41,9 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
     }
     setCvData(prev => ({
       ...prev,
-      Projects: [...prev.Projects, { Nama_Proyek: projForm.name, Role: projForm.role, Tech_Stack: projForm.stack, Deskripsi: projForm.desc }]
+      Projects: [...prev.Projects, { Nama_Proyek: projForm.name, Role: projForm.role, Tech_Stack: projForm.stack, Duration: projForm.duration, Deskripsi: projForm.desc }]
     }));
-    setProjForm({ name: "", role: "", stack: "", desc: "" });
+    setProjForm({ name: "", role: "", stack: "", duration: "", desc: "" });
   };
 
   // --- PERBAIKAN LOGIC DELETE HANDLERS ---
@@ -158,6 +158,10 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 placeholder="Tech Stack" className="col-span-2 border p-3 rounded-lg" 
                 value={projForm.stack || ""} onChange={e => setProjForm({...projForm, stack: e.target.value})} 
             />
+            <input 
+                placeholder="Duration" className="col-span-2 border p-3 rounded-lg" 
+                value={projForm.duration || ""} onChange={e => setProjForm({...projForm, duration: e.target.value})} 
+            />
             <textarea 
                 placeholder="Deskripsi Proyek" className="col-span-2 border p-3 rounded-lg h-24" 
                 value={projForm.desc || ""} onChange={e => setProjForm({...projForm, desc: e.target.value})} 
@@ -178,6 +182,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                     <div>
                         <h4 className="font-bold text-gray-900">{item.Nama_Proyek}</h4>
                         <p className="text-xs text-purple-600 font-semibold mb-1">{item.Tech_Stack}</p>
+                        <p className="text-xs text-gray-500 mb-1">{item.Duration}</p>
                         <p className="text-sm text-gray-700 line-clamp-2">{item.Deskripsi}</p>
                     </div>
                     <button onClick={() => handleDeleteProj(idx)} className="cursor-pointer text-red-500 hover:text-red-700 p-2 ml-2">🗑️</button>

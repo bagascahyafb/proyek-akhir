@@ -97,8 +97,8 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
             onChange={(e) => setCvData({...cvData, Language: e.target.value})}
             className="w-full border p-4 rounded-lg bg-white text-lg"
         >
-            <option value="English">🇬🇧 English (International Standard)</option>
-            <option value="Indonesia">🇮🇩 Indonesia (Formal)</option>
+            <option value="English">🇬🇧 English</option>
+            <option value="Indonesia">🇮🇩 Indonesia</option>
         </select>
         <p className="text-sm text-gray-500 mt-2">*AI akan menerjemahkan & menyesuaikan gaya bahasa otomatis berdasarkan pilihan ini.</p>
       </div>

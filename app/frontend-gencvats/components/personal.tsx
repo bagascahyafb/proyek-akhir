@@ -1,7 +1,18 @@
 import { StepProps } from "@/types";
+import { useModal, CustomModal } from "./custommodal";
 
 export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps) {
   
+  // PANGGIL HOOK MODAL
+  const { modalProps, showAlert} = useModal();
+
+  // Fungsi penahan sebelum pindah step
+  const handleNext = () => {
+    if (!cvData.Personal_Info.Nama || !cvData.Personal_Info.Email) {
+        return showAlert("Peringatan", "Nama dan Email wajib diisi sebelum melanjutkan!");
+    }
+    nextStep?.();
+  };
   // Helper biar kodenya gak panjang ngetik onChange terus
   const updateInfo = (field: keyof typeof cvData.Personal_Info, value: string) => {
     setCvData(prev => ({
@@ -61,18 +72,20 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
         <label className="block text-sm font-bold text-gray-700 mb-2">Alamat Domisili</label>
         <textarea 
           className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24"
-          placeholder="Kota, Provinsi"
+          placeholder="Kota / Kabupaten"
           value={cvData.Personal_Info.Alamat || ""}
           onChange={(e) => updateInfo("Alamat", e.target.value)}
         />
       </div>
 
       <div className="flex justify-end mt-8 pt-6">
-        <button type="button" onClick={nextStep} 
+        <button type="button" onClick={handleNext} 
             className="cursor-pointer px-6 py-2 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg">
             Next
         </button>
       </div>
+      {/* BAGIAN RENDER MODAL YANG BARU */}
+      <CustomModal {...modalProps} />
     </div>
   );
 }

@@ -183,7 +183,7 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
       ) : (
         // FORM MANUAL
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-6 rounded-xl border">
-          <div className="col-span-2">
+          <div className="md:col-span-2">
             <label className="block text-sm font-bold mb-1">Kategori</label>
             <select 
               value={manualForm.kategori || "Keahlian"}
@@ -195,22 +195,25 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
             </select>
           </div>
           <input 
-            placeholder="Nama Sertifikat / Lomba" className="p-3 border rounded-lg" 
+            placeholder="Nama Sertifikat / Lomba" 
+            className="p-3 border rounded-lg" 
             value={manualForm.nama || ""} 
             onChange={e => setManualForm({...manualForm, nama: e.target.value})} 
           />
           <input 
-            placeholder="Penerbit / Penyelenggara" className="p-3 border rounded-lg" 
+            placeholder="Penerbit / Penyelenggara" 
+            className="p-3 border rounded-lg" 
             value={manualForm.penerbit || ""} 
             onChange={e => setManualForm({...manualForm, penerbit: e.target.value})} 
           />
           <input 
-            placeholder="Tahun" className="p-3 border rounded-lg" 
+            placeholder="Tahun" 
+            className="p-3 border rounded-lg" 
             value={manualForm.tahun || ""} 
             onChange={e => setManualForm({...manualForm, tahun: e.target.value})} 
           />
           
-          <button onClick={addManual} className="col-span-2 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-bold shadow">➕ Tambahkan Manual</button>
+          <button onClick={addManual} className="md:col-span-2 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-bold shadow">➕ Tambahkan Manual</button>
         </div>
       )}
 

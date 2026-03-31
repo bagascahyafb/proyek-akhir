@@ -46,7 +46,7 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onClose }
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-fade-in-up border border-gray-100">
-        <h3 className={`text-xl font-extrabold mb-3 ${type === "alert" ? "text-blue-600" : "text-orange-600"}`}>
+        <h3 className={`text-xl font-extrabold mb-3 ${type === "alert" ? "text-red-600" : "text-orange-600"}`}>
           {title}
         </h3>
         <p className="text-gray-700 mb-6 whitespace-pre-wrap text-sm leading-relaxed">

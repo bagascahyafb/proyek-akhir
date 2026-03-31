@@ -177,7 +177,7 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
                 />
                 
                 <button type="button" onClick={addManual} className="cursor-pointer bg-green-600 text-white md:col-span-2 py-3 rounded-lg font-bold hover:bg-green-700 shadow">
-                    ➕ Tambah Pendidikan
+                    Tambah Pendidikan
                 </button>
             </div>
         )}

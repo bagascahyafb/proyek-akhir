@@ -15,22 +15,39 @@ def run_ai_ocr(image, jenis):
     
     if jenis == "ijazah":
         prompt = """
-        Ekstrak data Ijazah ke JSON. Keys: "Nama_Lengkap", "Universitas", "Jurusan", "Gelar", "Tahun_Lulus", "IPK".
-        Jika tidak ada, isi "Tidak Ditemukan".
+        Lakukan OCR dan Ekstraksi Entitas dari gambar Ijazah ini.
+        Output WAJIB JSON murni dengan keys:
+        - "OCR_Raw": (Semua teks yang terbaca)
+        - "Nama_Lengkap": Nama lengkap pemilik ijazah.
+        - "NIM": Nomor Induk Mahasiswa / No Registrasi (Cari angka panjang, jangan NIK/No Ijazah).
+        - "Jurusan": Program Studi atau Jurusan.
+        - "Gelar": Gelar akademik (Contoh: S.Kom, Ph.D, S. T, Sarjana Teknik, Sarjana Komputer, DLL).
+        - "Tahun_Lulus": Tahun kelulusan (4 digit, jangan buat dalam bentuk desimal).
+        - "Universitas": Nama Perguruan Tinggi.
+
+        Aturan:
+        1. Jika data tidak ditemukan, isi dengan "Tidak Ditemukan Data". 
+        2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
+        3. Hanya berikan JSON murni.
         """
     else:
         prompt = """
-        Ekstrak data Sertifikat ke JSON.
-        Keys: 
-        - "Nama_Peserta"
-        - "Judul_Sertifikat"
-        - "Lembaga_Penerbit"
-        - "Tahun_Sertifikat"
-        - "Skill": (daftar skill utama, pisah koma)
+        Lakukan OCR dan Ekstraksi Entitas dari gambar Sertifikat ini.
+        Output WAJIB JSON murni dengan keys:
+        - "Nama_Peserta": Nama orang yang menerima sertifikat.
+        - "Judul_Sertifikat": Nama pelatihan/event.
+        - "id_sertifikat" : Nomor sertifikat jika ada.
+        - "Lembaga_Penerbit": Organisasi penerbit.
+        - "Skill": Daftar skill atau topik utama (pisahkan koma).
+        - "Tahun_Sertifikat": Tahun terbit (4 digit, jangan buat dalam bentuk desimal).
+        - "Masa_Berlaku": Tahun kadaluarsa (4 digit, jangan buat dalam bentuk desimal, isi "Tidak Ditemukan Data" jika seumur hidup).
         - "Tipe_Skill": (Pilih satu dominan: "Hard Skill" atau "Soft Skill")
         - "Kategori": (Pilih satu: 'Sertifikasi' atau 'Penghargaan')
         
-        Jika sertifikat penghargaan/lomba, masukkan ke Kategori 'Penghargaan'.
+        Aturan:
+        1. Jika data tidak ditemukan, isi dengan teks "Tidak Ditemukan Data". 
+        2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
+        3. Hanya berikan JSON murni.  
         """
 
     try:
@@ -55,11 +72,15 @@ def enhance_final_cv_llm(data, language="English"):
     
     TUGAS:
     1. Perbaiki tata bahasa dan ejaan.
-    2. Ubah deskripsi pengalaman/proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result).
-    3. Pastikan Summary menarik dan profesional.
-    4. Jangan mengubah fakta (Nama, Tahun, Universitas), hanya perbaiki cara penyampaiannya.
-    5. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain.
-    
+    2. Ubah deskripsi pebdidikan, pengalaman, dan proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result).
+    3. Jangan mengubah fakta (Nama, Tahun, Universitas), hanya perbaiki cara penyampaiannya.
+    4. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain.
+    5. Pada bagian Summary, buat ringkasan singkat (2-4 kalimat) yang menonjolkan keahlian dan pencapaian utama.
+        * Jangan buat ringkasan yang terlalu umum seperti "Hardworking and dedicated professional seeking a challenging position." Hindari klise.
+        * Ambil ringkasan berdasarkan output yang diberikan, jangan buat ringkasan yang tidak relevan dengan pengalaman dan keahlian yang ada. Harus sertakan lama pengalaman kerja dengan mengambil dari bagian Work Experience dan Projects, skill utama, dan pencapaian yang menonjol.
+        * Contoh: "5 Years Experienced Software Engineer with a strong background in developing scalable web applications. Proficient in Python and JavaScript, with a proven track record of leading successful projects and improving system performance."
+        * Pastikan format output tetap JSON dengan struktur yang sama persis seperti input, hanya isinya yang dipoles.
+
     OUTPUT:
     Kembalikan JSON yang strukturnya SAMA PERSIS dengan input, tapi isinya sudah dipoles, jangan mengarang data.
     Hanya output JSON, tanpa teks lain.

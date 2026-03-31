@@ -81,14 +81,11 @@ def generate_ats_docx(data, language="English"):
         for item in data['Experience']:
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(0)
-            
             # Posisi (Bold)
             run_pos = p.add_run(f"{item['Posisi']}")
             run_pos.bold = True
-            
             # Perusahaan
             p.add_run(f" | {item['Perusahaan']}")
-            
             # --- FIX 2: TANGGAL ITALIC (Pake add_run biar gak ngerusak global) ---
             p_date = doc.add_paragraph()
             p_date.paragraph_format.space_after = Pt(2)
@@ -119,6 +116,12 @@ def generate_ats_docx(data, language="English"):
             meta = []
             if item.get('Role'): meta.append(item['Role'])
             if item.get('Tech_Stack'): meta.append(f"({item['Tech_Stack']})")
+            p_date = doc.add_paragraph()
+            p_date.paragraph_format.space_after = Pt(2)
+            run_date = p_date.add_run(item['Duration'])
+            run_date.italic = True 
+            run_date.font.size = Pt(10)
+
             if meta: p.add_run(f" | {' '.join(meta)}")
             
             if 'Deskripsi' in item:
