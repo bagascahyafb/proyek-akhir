@@ -10,10 +10,12 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
 
   const [uploadCategory, setUploadCategory] = useState<"Keahlian" | "Penghargaan">("Keahlian");
   const [manualForm, setManualForm] = useState({ kategori: "Keahlian", nama: "", penerbit: "", tahun: "" });
+  const [editingState, setEditingState] = useState<{ type: "Keahlian" | "Kompetisi"; index: number } | null>(null);
 
   // PANGGIL HOOK MODAL
   const { modalProps, showAlert, showConfirm } = useModal();
 
+  // Handle upload file sertifikat/penghargaan
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -30,16 +32,14 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
     formData.append("jenis", "sertifikat");
     formData.append("target_name", cvData.Personal_Info.Nama);
 
-    // 1. GANTI apiUrl PAKE DOMAIN NGROK LO
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
-      // 2. TEMBAK KE apiUrl & TAMBAHIN HEADER BYPASS NGROK
-      const res = await axios.post(`${apiUrl}/extract-ocr`, formData, { 
-        headers: { 
-            "Content-Type": "multipart/form-data",
-            "ngrok-skip-browser-warning": "true"
-        } 
+      const res = await axios.post(`${apiUrl}/extract-ocr`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "ngrok-skip-browser-warning": "true"
+        }
       });
       const { data, validation } = res.data;
 
@@ -47,15 +47,15 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
         setCvData(prev => {
           const newData = { ...prev };
           if (uploadCategory === "Penghargaan") {
-             newData.Awards = [...prev.Awards, { Nama_Award: data.Judul_Sertifikat || "Tanpa Judul", Pemberi: data.Lembaga_Penerbit || "Penyelenggara Tidak Terdeteksi", Tahun: data.Tahun_Sertifikat || "-" }];
+            newData.Awards = [...prev.Awards, { Nama_Award: data.Judul_Sertifikat || "Tanpa Judul", Pemberi: data.Lembaga_Penerbit || "Penyelenggara Tidak Terdeteksi", Tahun: data.Tahun_Sertifikat || "-" }];
           } else {
-             newData.Certifications = [...prev.Certifications, { Nama: data.Judul_Sertifikat || "Tanpa Judul", Penerbit: data.Lembaga_Penerbit || "Penerbit Tidak Terdeteksi", Tahun: data.Tahun_Sertifikat || "-" }];
+            newData.Certifications = [...prev.Certifications, { Nama: data.Judul_Sertifikat || "Tanpa Judul", Penerbit: data.Lembaga_Penerbit || "Penerbit Tidak Terdeteksi", Tahun: data.Tahun_Sertifikat || "-" }];
           }
 
           if (data.Skill && data.Skill !== "Tidak Ditemukan") {
-              const newSkills = data.Skill.split(",").map((s: string) => s.trim());
-              if (data.Tipe_Skill && data.Tipe_Skill.includes("Soft")) newData.Skills_Soft = [...prev.Skills_Soft, ...newSkills];
-              else newData.Skills_Hard = [...prev.Skills_Hard, ...newSkills];
+            const newSkills = data.Skill.split(",").map((s: string) => s.trim());
+            if (data.Tipe_Skill && data.Tipe_Skill.includes("Soft")) newData.Skills_Soft = [...prev.Skills_Soft, ...newSkills];
+            else newData.Skills_Hard = [...prev.Skills_Hard, ...newSkills];
           }
           return newData;
         });
@@ -68,23 +68,80 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
         executeSave();
       }
 
-    } catch (err) { 
-      showAlert("Error", "Gagal memproses file. Pastikan server berjalan."); 
-    } finally { 
-      setLoading(false); 
+    } catch (err) {
+      showAlert("Error", "Gagal memproses file. Pastikan server berjalan.");
+    } finally {
+      setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
+  // ================= ADD / EDIT =================
   const addManual = () => {
     if (!manualForm.nama) return showAlert("Perhatian", "Isi nama sertifikat terlebih dahulu!");
+
     setCvData(prev => {
       const newData = { ...prev };
-      if (manualForm.kategori === "Kompetisi") newData.Awards = [...prev.Awards, { Nama_Award: manualForm.nama, Pemberi: manualForm.penerbit, Tahun: manualForm.tahun }];
-      else newData.Certifications = [...prev.Certifications, { Nama: manualForm.nama, Penerbit: manualForm.penerbit, Tahun: manualForm.tahun }];
+
+      if (manualForm.kategori === "Kompetisi") {
+        const awardData = {
+          Nama_Award: manualForm.nama,
+          Pemberi: manualForm.penerbit,
+          Tahun: manualForm.tahun
+        };
+
+        if (editingState?.type === "Kompetisi") {
+          newData.Awards = prev.Awards.map((item, i) =>
+            i === editingState.index ? awardData : item
+          );
+        } else {
+          newData.Awards = [...prev.Awards, awardData];
+        }
+      } else {
+        const certData = {
+          Nama: manualForm.nama,
+          Penerbit: manualForm.penerbit,
+          Tahun: manualForm.tahun
+        };
+
+        if (editingState?.type === "Keahlian") {
+          newData.Certifications = prev.Certifications.map((item, i) =>
+            i === editingState.index ? certData : item
+          );
+        } else {
+          newData.Certifications = [...prev.Certifications, certData];
+        }
+      }
+
       return newData;
     });
+
+    setEditingState(null);
     setManualForm({ kategori: "Keahlian", nama: "", penerbit: "", tahun: "" });
+  };
+
+  const handleEditCert = (idx: number) => {
+    const cert = cvData.Certifications[idx];
+    setManualForm({
+      kategori: "Keahlian",
+      nama: cert.Nama || "",
+      penerbit: cert.Penerbit || "",
+      tahun: cert.Tahun || ""
+    });
+    setEditingState({ type: "Keahlian", index: idx });
+    setActiveTab("manual");
+  };
+
+  const handleEditAward = (idx: number) => {
+    const award = cvData.Awards[idx];
+    setManualForm({
+      kategori: "Kompetisi",
+      nama: award.Nama_Award || "",
+      penerbit: award.Pemberi || "",
+      tahun: award.Tahun || ""
+    });
+    setEditingState({ type: "Kompetisi", index: idx });
+    setActiveTab("manual");
   };
 
   const handleDeleteCert = (idx: number) => {
@@ -108,8 +165,8 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
             key={tab}
             onClick={() => setActiveTab(tab as any)}
             className={`cursor-pointer px-6 py-3 font-bold text-sm rounded-t-lg transition ${
-              activeTab === tab 
-                ? "bg-blue-600 text-white shadow-lg" 
+              activeTab === tab
+                ? "bg-blue-600 text-white shadow-lg"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -124,11 +181,11 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
             <p className="font-bold text-gray-700 mb-3 text-sm">Jenis dokumen yang akan diupload:</p>
             <div className="flex gap-4">
               <label className={`flex-1 cursor-pointer border p-3 rounded-lg flex items-center gap-2 transition ${uploadCategory === "Keahlian" ? "bg-white border-blue-500 ring-2 ring-blue-200" : "bg-gray-50 border-gray-200"}`}>
-                <input 
-                  type="radio" 
-                  name="cat" 
+                <input
+                  type="radio"
+                  name="cat"
                   value="Keahlian"
-                  checked={uploadCategory === "Keahlian"} 
+                  checked={uploadCategory === "Keahlian"}
                   onChange={() => setUploadCategory("Keahlian")}
                   className="w-4 h-4 text-blue-600"
                 />
@@ -139,11 +196,11 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
               </label>
 
               <label className={`flex-1 cursor-pointer border p-3 rounded-lg flex items-center gap-2 transition ${uploadCategory === "Penghargaan" ? "bg-white border-orange-500 ring-2 ring-orange-200" : "bg-gray-50 border-gray-200"}`}>
-                <input 
-                  type="radio" 
-                  name="cat" 
+                <input
+                  type="radio"
+                  name="cat"
                   value="Penghargaan"
-                  checked={uploadCategory === "Penghargaan"} 
+                  checked={uploadCategory === "Penghargaan"}
                   onChange={() => setUploadCategory("Penghargaan")}
                   className="w-4 h-4 text-orange-600"
                 />
@@ -155,13 +212,13 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
             </div>
           </div>
           <div className="p-8 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 text-center hover:bg-gray-100 transition relative">
-            <input 
-                type="file" 
+            <input
+                type="file"
                 ref={fileInputRef}
-                onChange={handleUpload} 
-                disabled={loading} 
-                accept=".pdf,.jpg,.jpeg,.png" 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                onChange={handleUpload}
+                disabled={loading}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
             <div className="flex flex-col items-center">
                 <span className="text-4xl mb-2">📂</span>
@@ -172,7 +229,7 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
                         <p className="font-bold text-gray-600">Klik atau geser file ke sini</p>
                         <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, JPEG</p>
                         <p className="text-xs font-semibold text-blue-500 mt-2 bg-blue-50 px-2 py-1 rounded">
-                            Mode: Masuk ke {uploadCategory === "Keahlian" ? "🛠️ Sertifikat Keahlian" : "🏆 Penghargaan"}
+                            Masuk bagian {uploadCategory === "Keahlian" ? "Sertifikat Keahlian" : "Penghargaan"}
                         </p>
                     </>
                 )}
@@ -185,7 +242,7 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-6 rounded-xl border">
           <div className="md:col-span-2">
             <label className="block text-sm font-bold mb-1">Kategori</label>
-            <select 
+            <select
               value={manualForm.kategori || "Keahlian"}
               onChange={(e) => setManualForm({...manualForm, kategori: e.target.value})}
               className="w-full p-3 border rounded-lg bg-white"
@@ -194,26 +251,48 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
               <option value="Kompetisi">Juara Kompetisi / Penghargaan</option>
             </select>
           </div>
-          <input 
-            placeholder="Nama Sertifikat / Lomba" 
-            className="p-3 border rounded-lg" 
-            value={manualForm.nama || ""} 
-            onChange={e => setManualForm({...manualForm, nama: e.target.value})} 
-          />
-          <input 
-            placeholder="Penerbit / Penyelenggara" 
-            className="p-3 border rounded-lg" 
-            value={manualForm.penerbit || ""} 
-            onChange={e => setManualForm({...manualForm, penerbit: e.target.value})} 
-          />
-          <input 
-            placeholder="Tahun" 
-            className="p-3 border rounded-lg" 
-            value={manualForm.tahun || ""} 
-            onChange={e => setManualForm({...manualForm, tahun: e.target.value})} 
-          />
-          
-          <button onClick={addManual} className="md:col-span-2 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-bold shadow">➕ Tambahkan Manual</button>
+          <div>
+            <label className="block text-sm font-bold mb-1">Nama Sertifikat <span className="text-red-500">*</span></label>
+            <input
+              placeholder="Nama Sertifikat / Lomba"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={manualForm.nama || ""}
+              onChange={e => setManualForm({...manualForm, nama: e.target.value})}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold mb-1">Penerbit / Penyelenggara</label>
+            <input
+              placeholder="Penerbit / Penyelenggara"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={manualForm.penerbit || ""}
+              onChange={e => setManualForm({...manualForm, penerbit: e.target.value})}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold mb-1">Tahun</label>
+            <input
+              placeholder="Tahun"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={manualForm.tahun || ""}
+              onChange={e => setManualForm({...manualForm, tahun: e.target.value})}
+            />
+          </div>
+          {editingState !== null && (
+            <p className="text-sm text-yellow-600 font-semibold md:col-span-2">
+              Sedang mengedit {editingState.type === "Keahlian" ? "sertifikat keahlian" : "penghargaan / lomba"}
+            </p>
+          )}
+          <button
+            onClick={addManual}
+            className={`cursor-pointer md:col-span-2 py-3 rounded-lg text-white font-bold shadow transition ${
+              editingState !== null
+                ? "bg-yellow-500 hover:bg-yellow-600"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {editingState !== null ? "Update Data" : "Tambahkan Manual"}
+          </button>
         </div>
       )}
 
@@ -228,9 +307,12 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
                     <li key={i} className="bg-white p-3 rounded border flex justify-between items-start text-sm shadow-sm">
                         <div>
                             <p className="font-bold text-gray-800">{c.Nama}</p>
-                            <p className="text-xs text-gray-500">{c.Penerbit} ({c.Tahun})</p>
+                            <p className="text-xs text-gray-500">{c.Penerbit} {c.Tahun && `(${c.Tahun})`}</p>
                         </div>
-                        <button onClick={() => handleDeleteCert(i)} className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">🗑️</button>                    
+                        <div className="flex gap-1">
+                            <button onClick={() => handleEditCert(i)} className="cursor-pointer text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition">✏️</button>
+                            <button onClick={() => handleDeleteCert(i)} className="cursor-pointer text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">🗑️</button>
+                        </div>
                     </li>
                 ))}
             </ul>
@@ -245,9 +327,12 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
                     <li key={i} className="bg-white p-3 rounded border flex justify-between items-start text-sm shadow-sm">
                         <div>
                             <p className="font-bold text-gray-800">{a.Nama_Award}</p>
-                            <p className="text-xs text-gray-500">{a.Pemberi} ({a.Tahun})</p>
+                            <p className="text-xs text-gray-500">{a.Pemberi} {a.Tahun && `(${a.Tahun})`}</p>
                         </div>
-                        <button onClick={() => handleDeleteAward(i)} className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">🗑️</button>
+                        <div className="flex gap-1">
+                            <button onClick={() => handleEditAward(i)} className="cursor-pointer text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-50 transition">✏️</button>
+                            <button onClick={() => handleDeleteAward(i)} className="cursor-pointer text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition">🗑️</button>
+                        </div>
                     </li>
                 ))}
             </ul>
@@ -255,11 +340,11 @@ export default function Step4Certificates({ cvData, setCvData, nextStep, prevSte
       </div>
 
       <div className="flex justify-between mt-8 pt-6">
-        <button type="button" onClick={prevStep} 
+        <button type="button" onClick={prevStep}
             className="cursor-pointer px-6 py-2 rounded-lg font-bold text-gray-600 bg-gray-200 hover:bg-gray-300 transition-all transform hover:scale-105 active:scale-95">
             Back
         </button>
-        <button type="button" onClick={nextStep} 
+        <button type="button" onClick={nextStep}
             className="cursor-pointer px-6 py-2 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg">
             Next
         </button>

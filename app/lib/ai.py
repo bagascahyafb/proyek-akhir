@@ -54,7 +54,7 @@ def run_ai_ocr(image, jenis):
         response = client.chat.completions.create(
             model=MODEL_ID,
             messages=[{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}]}],
-            temperature=0.1, max_tokens=1024,
+            temperature=0.1, max_tokens=8192,
         )
         content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
         return json.loads(content)
@@ -66,13 +66,13 @@ def enhance_final_cv_llm(data, language="English"):
     
     prompt = f"""
     Bertindaklah sebagai Expert CV Resume Writer. Tugasmu adalah memoles (rewrite) konten CV ini agar ATS-Friendly dan Profesional dalam bahasa {language}.
-    
+
     INPUT DATA (JSON):
     {json.dumps(data)}
-    
+
     TUGAS:
     1. Perbaiki tata bahasa dan ejaan.
-    2. Ubah deskripsi pebdidikan, pengalaman, dan proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result).
+    2. Ubah deskripsi pendidikan, pengalaman, dan proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result).
     3. Jangan mengubah fakta (Nama, Tahun, Universitas), hanya perbaiki cara penyampaiannya.
     4. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain.
     5. Pada bagian Summary, buat ringkasan singkat (2-4 kalimat) yang menonjolkan keahlian dan pencapaian utama.

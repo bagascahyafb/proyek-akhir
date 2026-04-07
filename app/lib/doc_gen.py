@@ -5,6 +5,11 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 # --- DOCX GENERATOR ---
+def safe_text(value):
+    if value is None:
+        return ""
+    return str(value).strip()
+
 def set_margins(doc):
     sections = doc.sections
     for section in sections:
@@ -136,22 +141,33 @@ def generate_ats_docx(data, language="English"):
     if data['Education']:
         add_section_header(doc, lang_map['edu'])
         for item in data['Education']:
+            institusi = safe_text(item.get('Institusi'))
+            tahun_lulus = safe_text(item.get('Tahun_Lulus'))
+            gelar = safe_text(item.get('Gelar'))
+            jurusan = safe_text(item.get('Jurusan'))
+            ipk = safe_text(item.get('IPK'))
+
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(0)
             
-            run_uni = p.add_run(item['Institusi'])
+            run_uni = p.add_run(institusi)
             run_uni.bold = True
             
-            p.add_run(f"  ({item['Tahun_Lulus']})")
+            if tahun_lulus:
+                p.add_run(f"  ({tahun_lulus})")
             
             p2 = doc.add_paragraph()
             p2.paragraph_format.space_after = Pt(6)
             
-            # --- FIX 3: GELAR ITALIC ---
-            run_major = p2.add_run(f"{item['Gelar']} in {item['Jurusan']}")
-            run_major.italic = True
+            edu_parts = [part for part in [gelar, jurusan] if part]
+            if edu_parts:
+                degree_line = " in ".join(edu_parts) if len(edu_parts) == 2 else edu_parts[0]
+                run_major = p2.add_run(degree_line)
+                run_major.italic = True
             
-            if item['IPK']: p2.add_run(f" | GPA: {item['IPK']}")
+            if ipk:
+                label = "GPA" if language == "English" else "IPK"
+                p2.add_run(f" | {label}: {ipk}")
 
     # 6. SKILLS
     if data['Skills_Hard'] or data['Skills_Soft']:
