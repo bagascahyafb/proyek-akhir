@@ -21,6 +21,7 @@ export interface CVDataState {
 export interface StepProps {
   cvData: CVDataState;
   setCvData: React.Dispatch<React.SetStateAction<CVDataState>>;
+  apiUrl: string;
   nextStep?: () => void;
   prevStep?: () => void;
 }

@@ -3,7 +3,7 @@ import axios from "axios";
 import { CVDataState, StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal"; // IMPORT HOOK MODAL
 
-export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) {
+export default function Step5Review({ cvData, setCvData, apiUrl, prevStep }: StepProps) {
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [expandedSections, setExpandedSections] = useState({
@@ -66,16 +66,6 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     cvData.Awards
   ]);
 
-  const togglePersonalField = (key: keyof typeof selectedContent.personalInfo) => {
-    setSelectedContent(prev => ({
-      ...prev,
-      personalInfo: {
-        ...prev.personalInfo,
-        [key]: !prev.personalInfo[key]
-      }
-    }));
-  };
-
   const toggleArrayItem = (
     key: "education" | "experience" | "projects" | "hardSkills" | "softSkills" | "certifications" | "awards",
     index: number
@@ -117,8 +107,6 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     setLoading(true);
     setStatusMsg("Sedang menghubungi AI untuk memoles CV Anda... (Bisa memakan waktu 10-20 detik)");
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
     try {
         const res = await axios.post(`${apiUrl}/enhance-cv`, cvData,  {
           headers: { 
@@ -157,8 +145,6 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
     setLoading(true);
     setStatusMsg("Sedang men-generate file .docx...");
     
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
     try {
       // 1. UBAH responseType JADI arraybuffer
       const res = await axios.post(`${apiUrl}/generate-docx`, downloadPayload, {
@@ -203,6 +189,7 @@ export default function Step5Review({ cvData, setCvData, prevStep }: StepProps) 
       )}
 
       <h2 className="text-2xl font-bold mb-6 border-b pb-4">5. Review & Finalisasi</h2>
+      <p className="mb-4 text-sm text-gray-500">Request AI dan generate dokumen diarahkan ke backend Hugging Face.</p>
 
       {/* LANGUAGE SELECTOR */}
       <div className="mb-8 bg-blue-50 p-6 rounded-xl border border-blue-100">

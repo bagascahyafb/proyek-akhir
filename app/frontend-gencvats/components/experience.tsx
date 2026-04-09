@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal";
 
 export default function Step3Experience({ cvData, setCvData, nextStep, prevStep }: StepProps) {
-
+  const tabs: Array<"exp" | "proj" | "skill"> = ["exp", "proj", "skill"];
   const [activeTab, setActiveTab] = useState<"exp" | "proj" | "skill">("exp");
 
   const [expForm, setExpForm] = useState({ pos: "", comp: "", dur: "", desc: "", type: "" });
@@ -14,40 +14,30 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
   const { modalProps, showAlert, showConfirm } = useModal();
 
-  const [hardSkillsText, setHardSkillsText] = useState("");
-  const [softSkillsText, setSoftSkillsText] = useState("");
+  const [hardSkillsText, setHardSkillsText] = useState(cvData.Skills_Hard.join(", "));
+  const [softSkillsText, setSoftSkillsText] = useState(cvData.Skills_Soft.join(", "));
 
   // ================= AUTO SKILL =================
-  const extractSkills = () => {
+  const extractSkills = (experience = cvData.Experience, projects = cvData.Projects) => {
     const hardKeywords = ["python","sql","machine learning","react","next.js","node","docker","tensorflow"];
     const softKeywords = ["leadership","teamwork","communication","problem solving","adaptability"];
 
-    let hardSet = new Set<string>();
-    let softSet = new Set<string>();
+    const hardSet = new Set<string>();
+    const softSet = new Set<string>();
 
     const allText = [
-      ...cvData.Experience.map(e => e.Deskripsi || ""),
-      ...cvData.Projects.map(p => (p.Tech_Stack || "") + " " + (p.Deskripsi || ""))
+      ...experience.map(e => e.Deskripsi || ""),
+      ...projects.map(p => (p.Tech_Stack || "") + " " + (p.Deskripsi || ""))
     ].join(" ").toLowerCase();
 
     hardKeywords.forEach(s => allText.includes(s) && hardSet.add(s));
     softKeywords.forEach(s => allText.includes(s) && softSet.add(s));
 
-    setCvData(prev => ({
-      ...prev,
+    return {
       Skills_Hard: Array.from(hardSet),
-      Skills_Soft: Array.from(softSet)
-    }));
+      Skills_Soft: Array.from(softSet),
+    };
   };
-
-  useEffect(() => {
-    extractSkills();
-  }, [cvData.Experience, cvData.Projects]);
-
-  useEffect(() => {
-    setHardSkillsText(cvData.Skills_Hard.join(", "));
-    setSoftSkillsText(cvData.Skills_Soft.join(", "));
-  }, [cvData.Skills_Hard, cvData.Skills_Soft]);
 
   // ================= EXPERIENCE =================
   const addExp = () => {
@@ -64,18 +54,26 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       Deskripsi: expForm.desc
     };
 
+    const nextExperience =
+      editingExpIndex !== null
+        ? cvData.Experience.map((item, i) => (i === editingExpIndex ? newData : item))
+        : [...cvData.Experience, newData];
+    const derivedSkills = extractSkills(nextExperience, cvData.Projects);
+    setHardSkillsText(derivedSkills.Skills_Hard.join(", "));
+    setSoftSkillsText(derivedSkills.Skills_Soft.join(", "));
+
     if (editingExpIndex !== null) {
       setCvData(prev => ({
         ...prev,
-        Experience: prev.Experience.map((item, i) =>
-          i === editingExpIndex ? newData : item
-        )
+        Experience: nextExperience,
+        ...derivedSkills
       }));
       setEditingExpIndex(null);
     } else {
       setCvData(prev => ({
         ...prev,
-        Experience: [...prev.Experience, newData]
+        Experience: nextExperience,
+        ...derivedSkills
       }));
     }
 
@@ -96,9 +94,14 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
   const handleDeleteExp = (idx: number) => {
     showConfirm("Konfirmasi Hapus", "Hapus pengalaman ini?", () => {
+      const nextExperience = cvData.Experience.filter((_, i) => i !== idx);
+      const derivedSkills = extractSkills(nextExperience, cvData.Projects);
+      setHardSkillsText(derivedSkills.Skills_Hard.join(", "));
+      setSoftSkillsText(derivedSkills.Skills_Soft.join(", "));
       setCvData(prev => ({
         ...prev,
-        Experience: prev.Experience.filter((_, i) => i !== idx)
+        Experience: nextExperience,
+        ...derivedSkills
       }));
     });
   };
@@ -118,18 +121,26 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       Deskripsi: projForm.desc
     };
 
+    const nextProjects =
+      editingProjIndex !== null
+        ? cvData.Projects.map((project, i) => (i === editingProjIndex ? newData : project))
+        : [...cvData.Projects, newData];
+    const derivedSkills = extractSkills(cvData.Experience, nextProjects);
+    setHardSkillsText(derivedSkills.Skills_Hard.join(", "));
+    setSoftSkillsText(derivedSkills.Skills_Soft.join(", "));
+
     if (editingProjIndex !== null) {
       setCvData(prev => ({
         ...prev,
-        Projects: prev.Projects.map((p, i) =>
-          i === editingProjIndex ? newData : p
-        )
+        Projects: nextProjects,
+        ...derivedSkills
       }));
       setEditingProjIndex(null);
     } else {
       setCvData(prev => ({
         ...prev,
-        Projects: [...prev.Projects, newData]
+        Projects: nextProjects,
+        ...derivedSkills
       }));
     }
 
@@ -150,9 +161,14 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
   const handleDeleteProj = (i: number) => {
     showConfirm("Hapus", "Yakin hapus proyek?", () => {
+      const nextProjects = cvData.Projects.filter((_, idx) => idx !== i);
+      const derivedSkills = extractSkills(cvData.Experience, nextProjects);
+      setHardSkillsText(derivedSkills.Skills_Hard.join(", "));
+      setSoftSkillsText(derivedSkills.Skills_Soft.join(", "));
       setCvData(prev => ({
         ...prev,
-        Projects: prev.Projects.filter((_, idx) => idx !== i)
+        Projects: nextProjects,
+        ...derivedSkills
       }));
     });
   };
@@ -166,8 +182,8 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       setCvData(prev => ({ ...prev, Skills_Hard: clean }));
       setHardSkillsText(clean.join(", "));
     } else {
-      setCvData(prev => ({ ...prev, Skills_Soft: clean }));
-      setSoftSkillsText(clean.join(", "));
+        setCvData(prev => ({ ...prev, Skills_Soft: clean }));
+        setSoftSkillsText(clean.join(", "));
     }
   };
 
@@ -177,10 +193,10 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       <h2 className="text-2xl font-bold mb-6 border-b pb-4">3. Pengalaman & Keahlian</h2>
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b">
-        {["exp", "proj", "skill"].map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab as any)}
+            onClick={() => setActiveTab(tab)}
             className={`cursor-pointer px-6 py-3 font-bold text-sm rounded-t-lg ${
               activeTab === tab
                 ? "bg-blue-600 text-white"

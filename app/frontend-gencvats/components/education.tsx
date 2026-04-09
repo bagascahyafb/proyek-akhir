@@ -3,8 +3,11 @@ import axios from "axios";
 import { StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal";
 
-export default function Step2Education({ cvData, setCvData, nextStep, prevStep }: StepProps) {
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
+export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, prevStep }: StepProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "manual">("upload");
+  const tabs: Array<"upload" | "manual"> = ["upload", "manual"];
   const [manual, setManual] = useState({uni: "", jur: "", gel: "", thn: "", ipk: "", matkul: ""});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -16,6 +19,12 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      showAlert("Ukuran File", "Ukuran file maksimal 5 MB per file.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     if (!cvData.Personal_Info.Nama) {
       showAlert("Perhatian", "Isi Nama di Step 1 dulu bro.");
@@ -29,8 +38,6 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
     formData.append("file", file);
     formData.append("jenis", "ijazah");
     formData.append("target_name", cvData.Personal_Info.Nama);
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
       const res = await axios.post(`${apiUrl}/extract-ocr`, formData);
@@ -55,12 +62,15 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
       };
 
       if (!validation.is_valid) {
-        showConfirm("Validasi", "Data beda nama, lanjut?", executeSave);
+        showConfirm("Validasi", `Nama Dokumen: "${validation.extracted_name}"\nNama Anda: "${cvData.Personal_Info.Nama}"\n\nApakah Anda yakin dokumen ini milik Anda dan ingin tetap menyimpannya?`, executeSave);
       } else {
         executeSave();
       }
-    } catch {
-      showAlert("Error", "Gagal OCR");
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.detail || "Gagal OCR"
+        : "Gagal OCR";
+      showAlert("Error", message);
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -129,12 +139,11 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
       <h2 className="text-2xl font-bold mb-6 border-b pb-3">
         2. Pendidikan
       </h2>
-
       <div className="flex gap-2 mb-6 border-b">
-        {["upload", "manual"].map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab as any)}
+            onClick={() => setActiveTab(tab)}
             className={`cursor-pointer px-6 py-3 font-bold text-sm rounded-t-lg transition ${
               activeTab === tab 
                 ? "bg-blue-600 text-white shadow-lg" 
