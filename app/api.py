@@ -16,6 +16,8 @@ from lib.file_process import validate_name
 
 app = FastAPI()
 
+MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -41,6 +43,20 @@ class CVData(BaseModel):
     Awards: list
     Language: str = "English"
 
+
+def validate_upload_size(upload_file: UploadFile) -> None:
+    file_obj = upload_file.file
+    current_position = file_obj.tell()
+    file_obj.seek(0, os.SEEK_END)
+    file_size = file_obj.tell()
+    file_obj.seek(current_position)
+
+    if file_size > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="Ukuran file melebihi batas 5 MB per file."
+        )
+
 # --- ENDPOINT OCR (PERBAIKAN HANDLING FILE) ---
 @app.post("/extract-ocr")
 async def extract_ocr(
@@ -50,6 +66,8 @@ async def extract_ocr(
 ):
     temp_filename = f"temp_{file.filename}"
     try:
+        validate_upload_size(file)
+
         # 1. Simpan file sementara
         with open(temp_filename, "wb") as f:
             shutil.copyfileobj(file.file, f)

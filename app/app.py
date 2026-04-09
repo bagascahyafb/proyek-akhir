@@ -9,6 +9,8 @@ from lib.doc_gen import generate_ats_docx
 # ==============================================================================
 st.set_page_config(page_title="GenCVATS", layout="wide")
 
+MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+
 # Inisialisasi Session State
 default_keys = [
     'cv_nama', 'cv_email', 'cv_hp', 'cv_linkedin', 'cv_alamat', 
@@ -50,19 +52,22 @@ with st.expander("🎓 2. Pendidikan (Upload / Manual)", expanded=False):
     with tab_up_edu:
         f_ijazah = st.file_uploader("Upload Ijazah", type=["pdf","jpg"], key="up_ijazah")
         if f_ijazah and st.button("Proses Ijazah"):
-            img = process_uploaded_file(f_ijazah)
-            if img:
-                data = run_ai_ocr(img, "ijazah")
-                if data:
-                    valid, msg = validate_name(st.session_state['cv_nama'], data.get('Nama_Lengkap'))
-                    if valid:
-                        st.session_state['cv_education'].append({
-                            "Institusi": data.get("Universitas"), "Jurusan": data.get("Jurusan"),
-                            "Gelar": data.get("Gelar"), "Tahun_Lulus": data.get("Tahun_Lulus"), "IPK": data.get("IPK")
-                        })
-                        st.success("Data Ijazah Masuk!")
-                    else:
-                        st.error(f"Validasi Gagal: {msg}")
+            if f_ijazah.size > MAX_FILE_SIZE_BYTES:
+                st.error("Ukuran file maksimal 5 MB per file.")
+            else:
+                img = process_uploaded_file(f_ijazah)
+                if img:
+                    data = run_ai_ocr(img, "ijazah")
+                    if data:
+                        valid, msg = validate_name(st.session_state['cv_nama'], data.get('Nama_Lengkap'))
+                        if valid:
+                            st.session_state['cv_education'].append({
+                                "Institusi": data.get("Universitas"), "Jurusan": data.get("Jurusan"),
+                                "Gelar": data.get("Gelar"), "Tahun_Lulus": data.get("Tahun_Lulus"), "IPK": data.get("IPK")
+                            })
+                            st.success("Data Ijazah Masuk!")
+                        else:
+                            st.error(f"Validasi Gagal: {msg}")
 
     # Tab Manual (Req #1)
     with tab_man_edu:
@@ -94,6 +99,11 @@ with st.expander("📜 3. Sertifikat & Skill (Hard/Soft Split)", expanded=False)
         if f_sertif and st.button("Proses Batch"):
             bar = st.progress(0)
             for i, f in enumerate(f_sertif):
+                if f.size > MAX_FILE_SIZE_BYTES:
+                    st.warning(f"{f.name} dilewati karena ukurannya melebihi 5 MB.")
+                    bar.progress((i+1)/len(f_sertif))
+                    continue
+
                 img = process_uploaded_file(f)
                 if img:
                     data = run_ai_ocr(img, "sertifikat")

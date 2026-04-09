@@ -26,3 +26,8 @@ bin/
 # --- Operating System Files ---
 .DS_Store
 Thumbs.db
+
+playwright-report/
+test-results/
+tests/
+load-tests/
