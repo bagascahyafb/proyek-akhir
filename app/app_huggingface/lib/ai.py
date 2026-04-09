@@ -88,6 +88,24 @@ def parse_json_response(content: Any) -> dict[str, Any]:
         raise AIRequestError(f"Respons model bukan JSON valid. Payload diterima: {cleaned[:300]}") from exc
 
 
+def normalize_empty_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: normalize_empty_values(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [normalize_empty_values(item) for item in value]
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized.lower() in {
+            "tidak ditemukan data",
+            "tidak ditemukan",
+            "not found",
+            "n/a",
+            "-",
+        }:
+            return ""
+    return value
+
+
 def build_ocr_prompt(jenis: str) -> str:
     if jenis == "ijazah":
         return """
@@ -102,7 +120,7 @@ def build_ocr_prompt(jenis: str) -> str:
         - "Universitas": Nama Perguruan Tinggi.
 
         Aturan:
-        1. Jika data tidak ditemukan, isi dengan "Tidak Ditemukan Data".
+        1. Jika data tidak ditemukan, isi dengan string kosong "".
         2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
         3. Hanya berikan JSON murni.
         """
@@ -116,12 +134,12 @@ def build_ocr_prompt(jenis: str) -> str:
     - "Lembaga_Penerbit": Organisasi penerbit.
     - "Skill": Daftar skill atau topik utama (pisahkan koma).
     - "Tahun_Sertifikat": Tahun terbit (4 digit, jangan buat dalam bentuk desimal).
-    - "Masa_Berlaku": Tahun kadaluarsa (4 digit, jangan buat dalam bentuk desimal, isi "Tidak Ditemukan Data" jika seumur hidup).
+    - "Masa_Berlaku": Tahun kadaluarsa (4 digit, jangan buat dalam bentuk desimal, isi string kosong "" jika seumur hidup atau tidak ditemukan).
     - "Tipe_Skill": (Pilih satu dominan: "Hard Skill" atau "Soft Skill")
     - "Kategori": (Pilih satu: "Sertifikasi" atau "Penghargaan")
 
     Aturan:
-    1. Jika data tidak ditemukan, isi dengan teks "Tidak Ditemukan Data".
+    1. Jika data tidak ditemukan, isi dengan string kosong "".
     2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
     3. Hanya berikan JSON murni.
     """
@@ -177,9 +195,9 @@ def run_ai_ocr(image, jenis: str):
             }
         ],
         temperature=0.1,
-        max_tokens=4096,
+        max_tokens=8192,
     )
-    return parse_json_response(result["content"])
+    return normalize_empty_values(parse_json_response(result["content"]))
 
 
 def enhance_final_cv_llm(data, language: str = "English"):
@@ -203,7 +221,7 @@ def enhance_final_cv_llm(data, language: str = "English"):
 
     result = create_chat_completion(
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.5,
-        max_tokens=4096,
+        temperature=0.3,
+        max_tokens=8192,
     )
-    return parse_json_response(result["content"])
+    return normalize_empty_values(parse_json_response(result["content"]))

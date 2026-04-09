@@ -293,7 +293,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               <div>
                 <p className="font-bold text-gray-900">{e.Institusi}</p>
                 <p className="text-sm text-gray-600">
-                  {e.Gelar && `${e.Gelar} - `} {e.Jurusan} ({e.Tahun_Lulus})
+                  {e.Gelar && `${e.Gelar} - `} {e.Jurusan} {e.Tahun_Lulus && `(${e.Tahun_Lulus})`}
                 </p>
 
                 {e.IPK && (
