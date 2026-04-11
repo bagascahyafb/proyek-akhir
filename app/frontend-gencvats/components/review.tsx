@@ -252,57 +252,6 @@ export default function Step5Review({ cvData, setCvData, apiUrl, prevStep }: Ste
         </div>
 
         <div className="mt-6 max-h-[28rem] overflow-y-auto pr-2 space-y-4">
-          {/* <div className="rounded-xl border bg-white">
-            <button
-              type="button"
-              onClick={() => toggleExpandedSection("personalInfo")}
-              className="w-full flex items-center justify-between px-4 py-4 text-left"
-            >
-              <div>
-                <h4 className="font-semibold text-gray-800">Informasi Personal</h4>
-                <p className="text-sm text-gray-500">7 field tersedia</p>
-              </div>
-              <span className="cursor-pointer text-sm font-semibold text-blue-600">
-                {expandedSections.personalInfo ? "Sembunyikan" : "Tampilkan"}
-              </span>
-            </button>
-            {expandedSections.personalInfo && (
-              <div className="px-4 pb-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {[
-                    { key: "nama", label: "Nama", value: cvData.Personal_Info.Nama || "-" },
-                    { key: "email", label: "Email", value: cvData.Personal_Info.Email || "-" },
-                    { key: "hp", label: "No. HP", value: cvData.Personal_Info.HP || "-" },
-                    { key: "linkedIn", label: "LinkedIn", value: cvData.Personal_Info.LinkedIn || "-" },
-                    { key: "alamat", label: "Alamat", value: cvData.Personal_Info.Alamat || "-" },
-                    { key: "portfolio", label: "Portfolio", value: cvData.Personal_Info.Portfolio || "-" },
-                    { key: "summary", label: "Summary", value: cvData.Personal_Info.Summary || "-" }
-                  ].map((field) => (
-                    <label
-                      key={field.key}
-                      className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition ${
-                        selectedContent.personalInfo[field.key as keyof typeof selectedContent.personalInfo]
-                          ? "border-blue-300 bg-blue-50"
-                          : "border-gray-200 bg-white hover:bg-gray-50"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedContent.personalInfo[field.key as keyof typeof selectedContent.personalInfo]}
-                        onChange={() => togglePersonalField(field.key as keyof typeof selectedContent.personalInfo)}
-                        className="mt-1 h-4 w-4"
-                      />
-                      <div>
-                        <p className="font-semibold text-gray-800">{field.label}</p>
-                        <p className="text-sm text-gray-500 break-words">{field.value}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div> */}
-
           {[
           {
             title: "Pendidikan",

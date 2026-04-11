@@ -202,7 +202,7 @@ def run_ai_ocr(image, jenis: str):
 
 def enhance_final_cv_llm(data, language: str = "English"):
     prompt = f"""
-    Bertindaklah sebagai Expert CV Resume Writer. Tugasmu adalah memoles (rewrite) konten CV ini agar ATS-Friendly dan Profesional dalam bahasa {language}.
+    Bertindaklah sebagai Expert CV Resume Writer. Tugasmu adalah memoles (rewrite) konten CV ini agar ATS-Friendly dan Profesional dalam bahasa {language}. Namun jangan mengarang data yang tidak di inputkan oleh pengguna.
 
     INPUT DATA (JSON):
     {json.dumps(data)}
@@ -210,18 +210,18 @@ def enhance_final_cv_llm(data, language: str = "English"):
     TUGAS:
     1. Perbaiki tata bahasa dan ejaan.
     2. Ubah deskripsi pendidikan, pengalaman, dan proyek menjadi kalimat aksi yang kuat, gunakan metode STAR.
-    3. Jangan mengubah fakta, hanya perbaiki cara penyampaiannya.
-    4. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain.
+    3. Jangan mengubah fakta data apapun, hanya perbaiki cara penyampaiannya.
+    4. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain selain nama edukasi dan sertifikat.
     5. Pada bagian Summary, buat ringkasan singkat 2-4 kalimat yang menonjolkan keahlian dan pencapaian utama.
-
-    OUTPUT:
-    Kembalikan JSON yang strukturnya sama persis dengan input, tapi isinya sudah dipoles, jangan mengarang data.
-    Hanya output JSON, tanpa teks lain.
+        •	Jangan buat ringkasan yang terlalu umum seperti "Hardworking and dedicated professional seeking a challenging position." Hindari klise.
+        •	Ambil ringkasan berdasarkan output yang diberikan, jangan buat ringkasan yang tidak relevan dengan pengalaman dan keahlian yang ada. Harus sertakan lama pengalaman kerja dengan mengambil dari bagian Work Experience dan Projects, skill utama, dan pencapaian yang menonjol.
+        •	Contoh: "5 Years Experienced Software Engineer with a strong background in developing scalable web applications. Proficient in Python and JavaScript, with a proven track record of leading successful projects and improving system performance."
+        •	Pastikan format output tetap JSON dengan struktur yang sama persis seperti input, hanya isinya yang dipoles.
     """
 
     result = create_chat_completion(
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
+        temperature=0.1,
         max_tokens=8192,
     )
     return normalize_empty_values(parse_json_response(result["content"]))

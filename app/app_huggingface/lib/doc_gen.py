@@ -61,7 +61,7 @@ def generate_ats_docx(data, language="English"):
 
     h1 = doc.add_paragraph()
     h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    name_run = h1.add_run(data["Personal_Info"]["Nama"])
+    name_run = h1.add_run(safe_text(data.get("Personal_Info", {}).get("Nama")))
     name_run.bold = True
     name_run.font.size = Pt(20)
     name_run.font.name = "Times New Roman"
@@ -72,6 +72,7 @@ def generate_ats_docx(data, language="English"):
             data["Personal_Info"]["HP"],
             data["Personal_Info"]["Email"],
             data["Personal_Info"]["LinkedIn"],
+            data["Personal_Info"]["Portfolio"],
             data["Personal_Info"]["Alamat"],
         ]
         if value
