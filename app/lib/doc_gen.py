@@ -61,13 +61,13 @@ def generate_ats_docx(data, language="English"):
     h1 = doc.add_paragraph()
     h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
     # Nama besar dan tebal
-    name_run = h1.add_run(data['Personal_Info']['Nama'])
+    name_run = h1.add_run(data.get('Personal_Info', {}).get('Nama', 'Unknown User'))
     name_run.bold = True
     name_run.font.size = Pt(20)
     name_run.font.name = 'Times New Roman'
     
     # Kontak
-    contact_list = [x for x in [data['Personal_Info']['HP'], data['Personal_Info']['Email'], data['Personal_Info']['LinkedIn'], data['Personal_Info']['Alamat']] if x]
+    contact_list = [x for x in [data['Personal_Info']['HP'], data['Personal_Info']['Email'], data['Personal_Info']['LinkedIn'], data['Personal_Info']['Alamat'], data['Personal_Info']['Portfolio']] if x]
     h2 = doc.add_paragraph(" | ".join(contact_list))
     h2.alignment = WD_ALIGN_PARAGRAPH.CENTER
     # Hapus manual style font name disini karena udah ikut global, cukup size aja
