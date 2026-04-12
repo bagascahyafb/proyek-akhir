@@ -33,7 +33,12 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
     try {
-      const res = await axios.post(`${apiUrl}/extract-ocr`, formData);
+      const res = await axios.post(`${apiUrl}/extract-ocr`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
       const { data, validation } = res.data;
 
       const executeSave = () => {
@@ -55,7 +60,7 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
       };
 
       if (!validation.is_valid) {
-        showConfirm("Validasi", "Data beda nama, lanjut?", executeSave);
+        showConfirm("Validasi", `Nama Dokumen: "${validation.extracted_name}"\nNama Anda: "${cvData.Personal_Info.Nama}"\n\nApakah Anda yakin dokumen ini milik Anda dan ingin tetap menyimpannya?`, executeSave);
       } else {
         executeSave();
       }
@@ -284,7 +289,7 @@ export default function Step2Education({ cvData, setCvData, nextStep, prevStep }
               <div>
                 <p className="font-bold text-gray-900">{e.Institusi}</p>
                 <p className="text-sm text-gray-600">
-                  {e.Gelar && `${e.Gelar} - `} {e.Jurusan} ({e.Tahun_Lulus})
+                  {e.Gelar && `${e.Gelar} - `} {e.Jurusan} {e.Tahun_Lulus && `(${e.Tahun_Lulus})`}
                 </p>
 
                 {e.IPK && (

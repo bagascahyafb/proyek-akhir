@@ -26,7 +26,7 @@ def run_ai_ocr(image, jenis):
         - "Universitas": Nama Perguruan Tinggi.
 
         Aturan:
-        1. Jika data tidak ditemukan, isi dengan "Tidak Ditemukan Data". 
+        1. Jika data tidak ditemukan, isi dengan string kosong "". 
         2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
         3. Hanya berikan JSON murni.
         """
@@ -45,7 +45,7 @@ def run_ai_ocr(image, jenis):
         - "Kategori": (Pilih satu: 'Sertifikasi' atau 'Penghargaan')
         
         Aturan:
-        1. Jika data tidak ditemukan, isi dengan teks "Tidak Ditemukan Data". 
+        1. Jika data tidak ditemukan, isi dengan string kosong "". 
         2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
         3. Hanya berikan JSON murni.  
         """
@@ -83,14 +83,14 @@ def enhance_final_cv_llm(data, language="English"):
 
     OUTPUT:
     Kembalikan JSON yang strukturnya SAMA PERSIS dengan input, tapi isinya sudah dipoles, jangan mengarang data.
-    Hanya output JSON, tanpa teks lain.
+    Hanya output JSON, tanpa teks lain. jika data tidak ditemukan isi  dengan string kosong "".
     """
     
     try:
         response = client.chat.completions.create(
             model=MODEL_ID,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
+            temperature=0.01,
         )
         content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
         return json.loads(content)
