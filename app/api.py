@@ -12,7 +12,11 @@ from PIL import Image
 # Import library logic
 from lib.ai import run_ai_ocr, enhance_final_cv_llm
 from lib.doc_gen import generate_ats_docx
-from lib.file_process import validate_name
+from lib.file_process import validate_name_detailed
+from fastapi.responses import FileResponse
+from docx2pdf import convert
+import os
+import uuid
 
 app = FastAPI()
 
@@ -127,15 +131,23 @@ async def extract_ocr(
         # 4. Validasi Nama
         validation_info = {
             "is_valid": True,
+            "status": "skipped",
             "message": "Validasi dilewati",
-            "extracted_name": "-"
+            "extracted_name": "-",
+            "similarity_score": None,
         }
         
         extracted_name = ocr_result.get("Nama_Lengkap") if jenis == "ijazah" else ocr_result.get("Nama_Peserta")
         
-        if target_name and extracted_name:
-            is_valid, msg = validate_name(target_name, extracted_name)
-            validation_info = { "is_valid": is_valid, "message": msg, "extracted_name": extracted_name }
+        if target_name:
+            validation_result = validate_name_detailed(target_name, extracted_name)
+            validation_info = {
+                "is_valid": validation_result["is_valid"],
+                "status": validation_result["status"],
+                "message": validation_result["message"],
+                "extracted_name": extracted_name or "-",
+                "similarity_score": validation_result["similarity_score"],
+            }
 
         print("✅ Done!")
         return { "data": ocr_result, "validation": validation_info }
@@ -193,3 +205,42 @@ async def enhance_cv(data: CVData):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- ENDPOINT GENERATE PDF (DARI DOCX) ---
+@app.post("/generate-pdf")
+def generate_pdf(data: dict):
+    filename = f"cv_{uuid.uuid4()}"
+    docx_path = f"{filename}.docx"
+    pdf_path = f"{filename}.pdf"
+
+    doc = generate_ats_docx(data, data.get("Language", "English"))
+    doc.save(docx_path)
+
+    convert(docx_path, pdf_path)
+
+    return FileResponse(pdf_path, media_type="application/pdf", filename="CV.pdf")
+
+# --- ENDPOINT PREVIEW PDF (DARI DOCX) ---
+@app.post("/preview-pdf")
+def preview_pdf(data: dict):
+    filename = f"preview_{uuid.uuid4()}"
+    docx_path = f"{filename}.docx"
+    pdf_path = f"{filename}.pdf"
+
+    doc = generate_ats_docx(data, data.get("Language", "English"))
+    doc.save(docx_path)
+
+    convert(docx_path, pdf_path)
+
+    # 🔥 return + auto delete
+    response = FileResponse(pdf_path, media_type="application/pdf")
+
+    @response.background
+    def cleanup():
+        try:
+            os.remove(docx_path)
+            os.remove(pdf_path)
+        except:
+            pass
+
+    return response

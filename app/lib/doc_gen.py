@@ -3,12 +3,29 @@ from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+import re
 
 # --- DOCX GENERATOR ---
 def safe_text(value):
     if value is None:
         return ""
     return str(value).strip()
+
+def extract_year(value):
+    match = re.search(r"\b(?:19|20)\d{2}\b", safe_text(value))
+    return match.group(0) if match else ""
+
+def extract_last_year(value):
+    matches = re.findall(r"\b(?:19|20)\d{2}\b", safe_text(value))
+    return matches[-1] if matches else ""
+
+def format_certificate_year_range(start_year, expiry_year):
+    start = extract_year(start_year)
+    expiry = extract_last_year(expiry_year)
+
+    if start and expiry and start != expiry:
+        return f"{start} - {expiry}"
+    return start or expiry
 
 def set_margins(doc):
     sections = doc.sections
@@ -35,6 +52,22 @@ def add_section_header(doc, title):
     bottom.set(qn('w:color'), '000000')
     pBdr.append(bottom)
     pPr.append(pBdr)
+
+def extract_bullet_items(text):
+    raw_text = safe_text(text).replace("\r\n", "\n")
+    if not raw_text:
+        return []
+
+    lines = [re.sub(r"^[-•*]\s*", "", line).strip() for line in raw_text.split("\n")]
+    items = [line for line in lines if line]
+
+    # Fallback: kalau user kasih 1 paragraf panjang, pecah per kalimat.
+    if len(items) == 1 and "\n" not in raw_text:
+        sentences = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", items[0]) if segment.strip()]
+        if len(sentences) > 1:
+            return sentences
+
+    return items
 
 def generate_ats_docx(data, language="English"):
     doc = Document()
@@ -100,13 +133,11 @@ def generate_ats_docx(data, language="English"):
             
             # Deskripsi
             if 'Deskripsi' in item:
-                for line in item['Deskripsi'].split('\n'):
-                    if line.strip():
-                        # Style 'List Bullet' biasanya aman, tapi kita pastikan font-nya
-                        p_desc = doc.add_paragraph(line.strip().replace('- ', ''), style='List Bullet')
-                        p_desc.paragraph_format.space_after = Pt(0)
-                        if p_desc.runs:
-                            p_desc.runs[0].font.name = 'Times New Roman'
+                for bullet in extract_bullet_items(item.get('Deskripsi')):
+                    p_desc = doc.add_paragraph(bullet, style='List Bullet')
+                    p_desc.paragraph_format.space_after = Pt(0)
+                    if p_desc.runs:
+                        p_desc.runs[0].font.name = 'Times New Roman'
 
     # 4. PROJECTS
     if data['Projects']:
@@ -130,12 +161,11 @@ def generate_ats_docx(data, language="English"):
             if meta: p.add_run(f" | {' '.join(meta)}")
             
             if 'Deskripsi' in item:
-                for line in item['Deskripsi'].split('\n'):
-                    if line.strip():
-                        p_desc = doc.add_paragraph(line.strip().replace('- ', ''), style='List Bullet')
-                        p_desc.paragraph_format.space_after = Pt(0)
-                        if p_desc.runs:
-                            p_desc.runs[0].font.name = 'Times New Roman'
+                for bullet in extract_bullet_items(item.get('Deskripsi')):
+                    p_desc = doc.add_paragraph(bullet, style='List Bullet')
+                    p_desc.paragraph_format.space_after = Pt(0)
+                    if p_desc.runs:
+                        p_desc.runs[0].font.name = 'Times New Roman'
 
     # 5. EDUCATION
     if data['Education']:
@@ -187,7 +217,10 @@ def generate_ats_docx(data, language="English"):
 
     # 7. AWARDS
     items = []
-    for c in data['Certifications']: items.append(f"{c['Nama']} - {c['Penerbit']} ({c['Tahun']})")
+    for c in data['Certifications']:
+        year_range = format_certificate_year_range(c.get('Tahun'), c.get('Masa_Berlaku'))
+        year_text = f" ({year_range})" if year_range else ""
+        items.append(f"{c['Nama']} - {c['Penerbit']}{year_text}")
     for a in data['Awards']: items.append(f"Award: {a['Nama_Award']} - {a['Pemberi']} ({a['Tahun']})")
     
     if items:

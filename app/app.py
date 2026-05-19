@@ -112,7 +112,10 @@ with st.expander("📜 3. Sertifikat & Skill (Hard/Soft Split)", expanded=False)
                         if valid:
                             # 1. Masukkan List Fisik Sertifikat
                             st.session_state['cv_certificates'].append({
-                                "Nama": data.get("Judul_Sertifikat"), "Penerbit": data.get("Lembaga_Penerbit"), "Tahun": data.get("Tahun_Sertifikat")
+                                "Nama": data.get("Judul_Sertifikat"),
+                                "Penerbit": data.get("Lembaga_Penerbit"),
+                                "Tahun": data.get("Tahun_Sertifikat"),
+                                "Masa_Berlaku": data.get("Masa_Berlaku")
                             })
                             
                             # 2. Cek Kategori Penghargaan
@@ -140,6 +143,9 @@ with st.expander("📜 3. Sertifikat & Skill (Hard/Soft Split)", expanded=False)
             judul = st.text_input("Nama Sertifikat / Penghargaan / Skill")
             penerbit = st.text_input("Penerbit / Penyelenggara")
             tahun = st.text_input("Tahun")
+            masa_berlaku = ""
+            if tipe_input == "Sertifikat Keahlian":
+                masa_berlaku = st.text_input("Tahun Kadaluarsa")
             
             # Opsi Tambahan jika Sertifikat Keahlian / Skill Saja
             jenis_skill = "None"
@@ -150,7 +156,7 @@ with st.expander("📜 3. Sertifikat & Skill (Hard/Soft Split)", expanded=False)
                 if tipe_input == "Penghargaan/Lomba":
                     st.session_state['cv_awards'].append({"Nama_Award": judul, "Pemberi": penerbit, "Tahun": tahun})
                 elif tipe_input == "Sertifikat Keahlian":
-                    st.session_state['cv_certificates'].append({"Nama": judul, "Penerbit": penerbit, "Tahun": tahun})
+                    st.session_state['cv_certificates'].append({"Nama": judul, "Penerbit": penerbit, "Tahun": tahun, "Masa_Berlaku": masa_berlaku})
                     if jenis_skill == "Hard Skill": st.session_state['cv_hard_skills'].append(judul)
                     else: st.session_state['cv_soft_skills'].append(judul)
                 else: # Skill Saja

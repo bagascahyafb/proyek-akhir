@@ -1,8 +1,8 @@
 // types/index.ts
 export interface EducationItem { Institusi: string; Jurusan: string; Gelar: string; Tahun_Lulus: string; IPK: string; Matkul:string;}
-export interface ExperienceItem { Posisi: string; Perusahaan: string; Durasi: string; Deskripsi: string; Tipe: string; }
+export interface ExperienceItem { Posisi: string; Perusahaan: string; Durasi: string; Deskripsi: string; Tipe: string; Jenis: string; }
 export interface ProjectItem { Nama_Proyek: string; Role: string; Tech_Stack: string; Duration:string ; Deskripsi: string; }
-export interface CertificateItem { Nama: string; Penerbit: string; Tahun: string; }
+export interface CertificateItem { Nama: string; Penerbit: string; Tahun: string; Masa_Berlaku?: string; }
 export interface AwardItem { Nama_Award: string; Pemberi: string; Tahun: string; }
 
 export interface CVDataState {

@@ -22,7 +22,7 @@ def process_uploaded_file(uploaded_file):
         return None
 
 def encode_image(pil_image):
-    max_size = 1024 
+    max_size = 5120 
     w, h = pil_image.size
     if w > max_size or h > max_size:
         ratio = max_size / max(w, h)
@@ -31,16 +31,57 @@ def encode_image(pil_image):
     pil_image.convert("RGB").save(buffered, format="JPEG", quality=85)
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-def validate_name(target_name, extracted_name, threshold=70):
-    if not target_name: return True, "Dilewati (Input Kosong)" 
-    if not extracted_name or not isinstance(extracted_name, str): return False, "Format Nama Salah"
-    
+def validate_name_detailed(target_name, extracted_name):
+    if not target_name:
+        return {
+            "is_valid": True,
+            "status": "skipped",
+            "message": "Validasi dilewati (Nama referensi kosong).",
+            "similarity_score": None,
+        }
+
+    if not extracted_name or not isinstance(extracted_name, str):
+        return {
+            "is_valid": False,
+            "status": "invalid",
+            "message": "Nama pada dokumen tidak terbaca dengan benar.",
+            "similarity_score": None,
+        }
+
     clean_extracted = extracted_name.lower().strip()
-    if clean_extracted in ["tidak ditemukan data", "tidak ditemukan", "-", ""]: 
-        return False, "Nama tidak terdeteksi"
-    
+    if clean_extracted in ["tidak ditemukan data", "tidak ditemukan", "-", ""]:
+        return {
+            "is_valid": False,
+            "status": "invalid",
+            "message": "Nama tidak terdeteksi pada dokumen.",
+            "similarity_score": None,
+        }
+
     similarity_score = fuzz.token_set_ratio(target_name.lower(), clean_extracted)
-    
-    if similarity_score >= threshold: return True, f"Valid ({similarity_score}%)"
-    elif similarity_score >= 50: return False, f"Meragukan ({similarity_score}%)"
-    else: return False, f"Tidak Cocok ({similarity_score}%)"
+    if similarity_score > 70:
+        return {
+            "is_valid": True,
+            "status": "valid",
+            "message": f"Valid - {similarity_score}%",
+            "similarity_score": similarity_score,
+        }
+
+    if 50 <= similarity_score <= 70:
+        return {
+            "is_valid": False,
+            "status": "warning",
+            "message": f"Meragukan - {similarity_score}%",
+            "similarity_score": similarity_score,
+        }
+
+    return {
+        "is_valid": False,
+        "status": "invalid",
+        "message": f"Tidak Valid - {similarity_score}%",
+        "similarity_score": similarity_score,
+    }
+
+
+def validate_name(target_name, extracted_name):
+    result = validate_name_detailed(target_name, extracted_name)
+    return result["is_valid"], result["message"]

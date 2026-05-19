@@ -15,39 +15,35 @@ def run_ai_ocr(image, jenis):
     
     if jenis == "ijazah":
         prompt = """
-        Lakukan OCR dan Ekstraksi Entitas dari gambar Ijazah ini.
-        Output WAJIB JSON murni dengan keys:
-        - "OCR_Raw": (Semua teks yang terbaca)
-        - "Nama_Lengkap": Nama lengkap pemilik ijazah.
-        - "NIM": Nomor Induk Mahasiswa / No Registrasi (Cari angka panjang, jangan NIK/No Ijazah).
-        - "Jurusan": Program Studi atau Jurusan.
-        - "Gelar": Gelar akademik (Contoh: S.Kom, Ph.D, S. T, Sarjana Teknik, Sarjana Komputer, DLL).
-        - "Tahun_Lulus": Tahun kelulusan (4 digit, jangan buat dalam bentuk desimal).
-        - "Universitas": Nama Perguruan Tinggi.
+        Lakukan OCR dan ekstraksi entitas dari gambar ijazah ini.
+
+        Output wajib JSON murni dengan keys:
+        - "Nama_Lengkap"
+        - "Jurusan"
+        - "Gelar"
+        - "Tahun_Lulus"
+        - "Universitas"
 
         Aturan:
-        1. Jika data tidak ditemukan, isi dengan string kosong "". 
-        2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
-        3. Hanya berikan JSON murni.
+        Jika data tidak ditemukan, isi "". Jangan mengarang data, tapi perbaiki typo jika jelas salah. Hanya output JSON murni.
         """
     else:
         prompt = """
-        Lakukan OCR dan Ekstraksi Entitas dari gambar Sertifikat ini.
-        Output WAJIB JSON murni dengan keys:
-        - "Nama_Peserta": Nama orang yang menerima sertifikat.
-        - "Judul_Sertifikat": Nama pelatihan/event.
-        - "id_sertifikat" : Nomor sertifikat jika ada.
-        - "Lembaga_Penerbit": Organisasi penerbit.
-        - "Skill": Daftar skill atau topik utama (pisahkan koma).
-        - "Tahun_Sertifikat": Tahun terbit (4 digit, jangan buat dalam bentuk desimal).
-        - "Masa_Berlaku": Tahun kadaluarsa (4 digit, jangan buat dalam bentuk desimal, isi "Tidak Ditemukan Data" jika seumur hidup).
-        - "Tipe_Skill": (Pilih satu dominan: "Hard Skill" atau "Soft Skill")
-        - "Kategori": (Pilih satu: 'Sertifikasi' atau 'Penghargaan')
-        
+        Lakukan OCR dan ekstraksi entitas dari gambar sertifikat ini.
+
+        Output wajib JSON murni dengan keys:
+        - "Nama_Peserta"
+        - "Judul_Sertifikat"
+        - "id_sertifikat"
+        - "Lembaga_Penerbit"
+        - "Skill"
+        - "Tahun_Sertifikat"
+        - "Masa_Berlaku"
+        - "Tipe_Skill" ("Hard Skill" / "Soft Skill")
+        - "Kategori" ("Sertifikasi" / "Penghargaan")
+
         Aturan:
-        1. Jika data tidak ditemukan, isi dengan string kosong "". 
-        2. Jangan mengarang data, akan tetapi jika entitas terdapat typo atau kesalahan penulisan maka perbaiki kesalahannya.
-        3. Hanya berikan JSON murni.  
+        Jika data tidak ditemukan, isi "". Jangan mengarang data, tapi perbaiki typo jika jelas salah. Hanya output JSON murni.
         """
 
     try:
@@ -65,32 +61,33 @@ def enhance_final_cv_llm(data, language="English"):
     client = get_client()
     
     prompt = f"""
-    Bertindaklah sebagai Expert CV Resume Writer. Tugasmu adalah memoles (rewrite) konten CV ini agar ATS-Friendly dan Profesional dalam bahasa {language}.
+    Bertindaklah sebagai Expert CV Resume Writer. Poles konten CV berikut agar ATS-Friendly dan profesional dalam bahasa {language}.
 
-    INPUT DATA (JSON):
+    INPUT JSON:
     {json.dumps(data)}
 
     TUGAS:
     1. Perbaiki tata bahasa dan ejaan.
-    2. Ubah deskripsi pendidikan, pengalaman, dan proyek menjadi kalimat aksi yang kuat (Action Verbs), gunakan metode STAR (Situation Task Action Result).
-    3. Jangan mengubah fakta (Nama, Tahun, Universitas), hanya perbaiki cara penyampaiannya.
-    4. Terjemahkan konten ke bahasa {language} jika inputnya bahasa lain.
-    5. Pada bagian Summary, buat ringkasan singkat (2-4 kalimat) yang menonjolkan keahlian dan pencapaian utama.
-        * Jangan buat ringkasan yang terlalu umum seperti "Hardworking and dedicated professional seeking a challenging position." Hindari klise.
-        * Ambil ringkasan berdasarkan output yang diberikan, jangan buat ringkasan yang tidak relevan dengan pengalaman dan keahlian yang ada. Harus sertakan lama pengalaman kerja dengan mengambil dari bagian Work Experience dan Projects, skill utama, dan pencapaian yang menonjol.
-        * Contoh: "5 Years Experienced Software Engineer with a strong background in developing scalable web applications. Proficient in Python and JavaScript, with a proven track record of leading successful projects and improving system performance."
-        * Pastikan format output tetap JSON dengan struktur yang sama persis seperti input, hanya isinya yang dipoles.
+    2. Jika deskripsi pendidikan, pengalaman, atau proyek memiliki isi, ubah menjadi kalimat aksi kuat menggunakan metode STAR (Situation, Task, Action, Result). Jika kosong, biarkan kosong dan jangan mengarang data, terutama angka.
+    3. Jangan ubah fakta seperti Nama, Tahun, atau Universitas.
+    4. Terjemahkan ke bahasa {language} jika diperlukan.
+    5. Buat Summary singkat (2–4 kalimat) yang:
+    - Menonjolkan skill utama dan pencapaian penting.
+    - Tidak klise/generik.
+    - Relevan dengan pengalaman dan skill yang tersedia.
+    - Menyebutkan lama pengalaman berdasarkan Work Experience dan Projects jika memungkinkan.
+    - Contoh:
+        "5 Years Experienced Software Engineer with a strong background in developing scalable web applications. Proficient in Python and JavaScript, with a proven track record of leading successful projects and improving system performance."
 
-    OUTPUT:
-    Kembalikan JSON yang strukturnya SAMA PERSIS dengan input, tapi isinya sudah dipoles, jangan mengarang data.
-    Hanya output JSON, tanpa teks lain.
+    Rules:
+    Pertahankan struktur JSON input secara IDENTIK. Hanya poles isi teksnya. Jangan mengarang data. Output wajib JSON murni tanpa teks tambahan.
     """
     
     try:
         response = client.chat.completions.create(
             model=MODEL_ID,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1, max_tokens=8192,
+            temperature=0.001, max_tokens=8192,
         )
         content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
         return json.loads(content)
