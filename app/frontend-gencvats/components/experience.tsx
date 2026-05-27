@@ -8,16 +8,92 @@ const inputClass =
 const selectClass =
   `${inputClass} cursor-pointer [&>option]:bg-[var(--color-surface)] [&>option]:text-[var(--foreground)] [&>option]:placeholder:text-[color-mix(in_oklab,var(--foreground)_45%,grey)]`;
 
-const formatDateLabel = (value: string) => {
+const getDateLocale = (language?: string) =>
+  language?.toLowerCase().startsWith("inggris") ? "id-ID" : "en-US";
+
+const normalizeMonthValue = (value: string) => {
   if (!value) return "";
-  const date = new Date(`${value}T00:00:00`);
+  const match = value.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  return match ? `${match[1]}-${match[2]}` : "";
+};
+
+const parseMonthLabel = (value: string) => {
+  const normalized = value.trim().replace(".", "").toLowerCase();
+  const match = normalized.match(/^([a-z]+)\s+((?:19|20)\d{2})$/i);
+  if (!match) return "";
+
+  const monthMap: Record<string, string> = {
+    jan: "01",
+    januari: "01",
+    january: "01",
+    feb: "02",
+    februari: "02",
+    february: "02",
+    mar: "03",
+    maret: "03",
+    march: "03",
+    apr: "04",
+    april: "04",
+    may: "05",
+    mei: "05",
+    jun: "06",
+    juni: "06",
+    june: "06",
+    jul: "07",
+    juli: "07",
+    july: "07",
+    aug: "08",
+    agu: "08",
+    ags: "08",
+    agustus: "08",
+    august: "08",
+    sep: "09",
+    sept: "09",
+    september: "09",
+    oct: "10",
+    okt: "10",
+    oktober: "10",
+    october: "10",
+    nov: "11",
+    november: "11",
+    dec: "12",
+    des: "12",
+    desember: "12",
+    december: "12",
+  };
+
+  const month = monthMap[match[1]];
+  return month ? `${match[2]}-${month}` : "";
+};
+
+const parseMonthValue = (value: string) => normalizeMonthValue(value) || parseMonthLabel(value);
+
+const formatDateLabel = (value: string, language?: string) => {
+  if (!value) return "";
+  const monthValue = parseMonthValue(value);
+  if (!monthValue) return "";
+
+  const date = new Date(`${monthValue}-01T00:00:00`);
   if (Number.isNaN(date.getTime())) return "";
 
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
+  return new Intl.DateTimeFormat(getDateLocale(language), {
     month: "short",
     year: "numeric",
   }).format(date);
+};
+
+const formatDurationLabel = (duration: string, language?: string) => {
+  if (!duration) return "";
+
+  const [startRaw, endRaw] = duration.split(/\s+-\s+/);
+  const startLabel = formatDateLabel(startRaw, language);
+  if (!startLabel) return duration;
+  if (!endRaw) return startLabel;
+
+  const isCurrent = /sekarang|present/i.test(endRaw);
+  const endLabel = isCurrent ? (getDateLocale(language) === "id-ID" ? "Sekarang" : "Present") : formatDateLabel(endRaw, language);
+
+  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
 };
 
 type ModernDateFieldProps = {
@@ -26,11 +102,14 @@ type ModernDateFieldProps = {
   min?: string;
   disabled?: boolean;
   placeholder: string;
+  language?: string;
 };
 
-function ModernDateField({ value, onChange, min, disabled = false, placeholder }: ModernDateFieldProps) {
+function ModernDateField({ value, onChange, min, disabled = false, placeholder, language }: ModernDateFieldProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const label = formatDateLabel(value);
+  const normalizedValue = normalizeMonthValue(value);
+  const normalizedMin = min ? normalizeMonthValue(min) : undefined;
+  const label = formatDateLabel(value, language);
 
   const openPicker = () => {
     if (disabled) return;
@@ -67,10 +146,10 @@ function ModernDateField({ value, onChange, min, disabled = false, placeholder }
       </span>
       <input
         ref={inputRef}
-        type="date"
-        min={min}
+        type="month"
+        min={normalizedMin}
         disabled={disabled}
-        value={value}
+        value={normalizedValue}
         onChange={(event) => onChange(event.target.value)}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         aria-label={placeholder}
@@ -78,6 +157,15 @@ function ModernDateField({ value, onChange, min, disabled = false, placeholder }
     </div>
   );
 }
+
+const normalizeUrl = (raw: string) => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("URL kosong");
+  }
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return new URL(withProtocol);
+};
 
 export default function Step3Experience({ cvData, setCvData, nextStep, prevStep }: StepProps) {
   const tabs: Array<"exp" | "proj" | "skill"> = ["exp", "proj", "skill"];
@@ -99,6 +187,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
     startDate: "",
     endDate: "",
     isCurrent: false,
+    link: "",
     desc: "",
   });
   const [editingExpIndex, setEditingExpIndex] = useState<number | null>(null);
@@ -123,14 +212,16 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
   };
 
   const parseDuration = (duration: string) => {
-    const match = (duration || "").match(/^(\d{4}-\d{2}-\d{2})\s-\s(\d{4}-\d{2}-\d{2}|Sekarang|Present)$/i);
-    if (!match) {
-      return { startDate: "", endDate: "", isCurrent: false };
-    }
-    const isCurrent = /sekarang|present/i.test(match[2]);
+    const [startRaw, endRaw] = (duration || "").split(/\s+-\s+/);
+    const startDate = parseMonthValue(startRaw || "");
+    const isCurrent = /sekarang|present/i.test(endRaw || "");
+    const endDate = isCurrent ? "" : parseMonthValue(endRaw || "");
+
+    if (!startDate) return { startDate: "", endDate: "", isCurrent: false };
+
     return {
-      startDate: match[1],
-      endDate: isCurrent ? "" : match[2],
+      startDate,
+      endDate,
       isCurrent,
     };
   };
@@ -167,8 +258,8 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
   // ================= EXPERIENCE =================
   const addExp = () => {
-    if (!expForm.pos || !expForm.comp || !expForm.type || !expForm.workMode || !expForm.startDate) {
-      showAlert("Perhatian", "Posisi, Perusahaan, Tipe Pekerjaan, Jenis Pekerjaan, dan Tanggal Mulai wajib diisi!");
+    if (!expForm.pos || !expForm.comp || !expForm.type || !expForm.workMode || !expForm.startDate || !expForm.desc) {
+      showAlert("Perhatian", "Posisi, Perusahaan, Tipe Pekerjaan, Jenis Pekerjaan, Tanggal Mulai, serta Deskripsi wajib diisi!");
       return;
     }
     if (!expForm.isCurrent && !expForm.endDate) {
@@ -176,7 +267,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       return;
     }
     if (!expForm.isCurrent && expForm.endDate < expForm.startDate) {
-      showAlert("Perhatian", "Tanggal selesai tidak boleh lebih awal dari tanggal mulai.");
+      showAlert("Perhatian", "Tanggal selesai tidak boleh lebih awal dari Tanggal mulai.");
       return;
     }
 
@@ -245,10 +336,19 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
     });
   };
 
+  const updateInfo = (field: keyof typeof cvData.Personal_Info, value: string) => {
+    setCvData((prev) => ({
+      ...prev,
+      Personal_Info: { ...prev.Personal_Info, [field]: value },
+    }));
+  };
+
   // ================= PROJECT =================
   const addProj = () => {
-    if (!projForm.name || !projForm.stack ) {
-      showAlert("Perhatian", "Nama proyek dan Tech Stack wajib diisi!");
+    const portfolioRaw = projForm.link.trim();
+
+    if (!projForm.name || !projForm.stack || !projForm.desc) {
+      showAlert("Perhatian", "Nama proyek, Tech Stack, dan Deskripsi wajib diisi!");
       return;
     }
     if (!projForm.startDate) {
@@ -256,12 +356,23 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       return;
     }
     if (!projForm.isCurrent && !projForm.endDate) {
-      showAlert("Perhatian", "Isi tanggal selesai proyek atau centang proyek masih berjalan.");
+      showAlert("Perhatian", "Isi Tanggal selesai proyek atau centang proyek masih berjalan.");
       return;
     }
     if (!projForm.isCurrent && projForm.endDate < projForm.startDate) {
-      showAlert("Perhatian", "Tanggal selesai proyek tidak boleh lebih awal dari tanggal mulai.");
+      showAlert("Perhatian", "Tanggal selesai proyek tidak boleh lebih awal dari Tanggal mulai.");
       return;
+    }
+
+    if (portfolioRaw) {
+      let portfolioUrl: URL;
+      try {
+        portfolioUrl = normalizeUrl(portfolioRaw);
+      } catch {
+        return showAlert("GitHub/Portofolio", "Format link GitHub/Portofolio tidak valid.");
+      }
+
+      updateInfo("Portfolio", portfolioUrl.toString());
     }
 
     const newData = {
@@ -269,6 +380,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       Role: projForm.role,
       Tech_Stack: projForm.stack,
       Duration: buildDuration(projForm.startDate, projForm.endDate, projForm.isCurrent),
+      link: projForm.link || "",
       Deskripsi: projForm.desc
     };
 
@@ -295,7 +407,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       }));
     }
 
-    setProjForm({ name: "", role: "", stack: "", startDate: "", endDate: "", isCurrent: false, desc: "" });
+    setProjForm({ name: "", role: "", stack: "", startDate: "", endDate: "", isCurrent: false, link:"",  desc: "" });
   };
 
   const handleEditProj = (i: number) => {
@@ -308,6 +420,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       startDate: parsedDuration.startDate,
       endDate: parsedDuration.endDate,
       isCurrent: parsedDuration.isCurrent,
+      link: data.link || "",
       desc: data.Deskripsi
     });
     setEditingProjIndex(i);
@@ -343,10 +456,9 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
 
   return (
-    <div className="bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-8 rounded-2xl shadow-xl text-[var(--foreground)]">
-      <h2 className="text-2xl font-bold mb-6 border-b pb-4">3. Pengalaman & Keahlian</h2>
+    <div>
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b">
+      <div className="flex gap-2 mt-2 mb-6 border-b">
         {tabs.map(tab => (
           <button
             key={tab}
@@ -374,7 +486,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               </label>
               <input
                 className={inputClass}
-                placeholder="Posisi (Data Analyst, Software Engineer, dll)"
+                placeholder="Data Analyst, Software Engineer, dll"
                 value={expForm.pos}
                 onChange={e => setExpForm({ ...expForm, pos: e.target.value })}
               />
@@ -399,22 +511,24 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               <ModernDateField
                 value={expForm.startDate}
                 onChange={(value) => setExpForm({ ...expForm, startDate: value })}
-                placeholder="Pilih tanggal mulai"
+                placeholder="Pilih Tanggal mulai"
+                language={cvData.Language}
               />
             </div>
 
             <div>
               <label className="block text-sm font-bold mb-1">
-                Tanggal Selesai
+                Tanggal Selesai  <span className="text-red-700">*</span>
               </label>
               <ModernDateField
                 disabled={expForm.isCurrent}
                 min={expForm.startDate || undefined}
                 value={expForm.endDate}
                 onChange={(value) => setExpForm({ ...expForm, endDate: value })}
-                placeholder={expForm.isCurrent ? "Masih bekerja di sini" : "Pilih tanggal selesai"}
+                placeholder={expForm.isCurrent ? "Masih bekerja di sini" : "Pilih Tanggal selesai"}
+                language={cvData.Language}
               />
-              <label className="mt-2 flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={expForm.isCurrent}
@@ -433,14 +547,14 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 value={expForm.type}
                 onChange={e => setExpForm({ ...expForm, type: e.target.value })}
               >
-                <option value="">Pilih tipe pekerjaan</option>
+                {/* <option value="">Pilih tipe pekerjaan</option> */}
                 <option value="Full-time">Full-time</option>
                 <option value="Part-time">Part-time</option>
                 <option value="Internship">Internship</option>
                 <option value="Contract">Contract</option>
-                <option value="Freelance">Freelance</option>
-                <option value="Apprenticeship">Apprenticeship</option>
+                <option value="Temporary">Temporary</option>
                 <option value="Volunteer">Volunteer</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
@@ -453,16 +567,17 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 value={expForm.workMode}
                 onChange={e => setExpForm({ ...expForm, workMode: e.target.value })}
               >
-                <option value="">Pilih jenis pekerjaan</option>
+                {/* <option value="">Pilih jenis pekerjaan</option> */}
                 <option value="On-site">On-site</option>
                 <option value="Hybrid">Hybrid</option>
                 <option value="Remote">Remote</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-sm font-bold mb-1">
-                Deskripsi
+                Deskripsi <span className="text-red-700">*</span>
               </label>
               <textarea
                 ref={expDescRef}
@@ -478,7 +593,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
             {/* INDICATOR EDIT */}
             {editingExpIndex !== null && (
-              <p className="md:col-span-2 text-[color-mix(in_oklab,var(--color-accent)_68%,black)] text-sm font-semibold">
+              <p className="block text-sm font-bold mb-1">
                 Sedang mengedit pengalaman
               </p>
             )}
@@ -518,7 +633,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                   <div>
                     <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_92%,black)]">{e.Posisi}</p>
                     <p className="text-sm text-[color-mix(in_oklab,var(--foreground)_78%,white)]">
-                      {e.Perusahaan} {e.Durasi && `| ${e.Durasi}`}
+                      {e.Perusahaan} {e.Durasi && `| ${formatDurationLabel(e.Durasi, cvData.Language)}`}
                     </p>
                     <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">
                       {[e.Tipe, e.Jenis].filter(Boolean).join(" | ")}
@@ -560,7 +675,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               Nama Proyek <span className="text-red-700">*</span>
             </label>
             <input className={inputClass}
-              placeholder="Nama Proyek"
+              placeholder="Mobile App E-Commerce, dll"
               value={projForm.name}
               onChange={e=>setProjForm({...projForm,name:e.target.value})}></input>
           </div>
@@ -571,20 +686,9 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               Role
             </label>
             <input className={inputClass}
-              placeholder="Role"
+              placeholder="UI/UX Designer, Backend Developer, dll"
               value={projForm.role}
               onChange={e=>setProjForm({...projForm,role:e.target.value})}/>
-          </div>
-
-          {/* Tech Stack */}
-          <div>
-            <label className="block text-sm font-bold mb-1">
-              Tech Stack <span className="text-red-700">*</span>
-            </label>
-            <input className={inputClass}
-              placeholder="Tech Stack"
-              value={projForm.stack}
-              onChange={e=>setProjForm({...projForm,stack:e.target.value})}/>
           </div>
 
           {/* Tanggal Mulai */}
@@ -595,21 +699,23 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             <ModernDateField
               value={projForm.startDate}
               onChange={(value) => setProjForm({ ...projForm, startDate: value })}
-              placeholder="Pilih tanggal mulai"
+              placeholder="Pilih Tanggal mulai"
+              language={cvData.Language}
             />
           </div>
 
           {/* Tanggal Selesai */}
           <div>
             <label className="block text-sm font-bold mb-1">
-              Tanggal Selesai
+              Tanggal Selesai  <span className="text-red-700">*</span>
             </label>
             <ModernDateField
               disabled={projForm.isCurrent}
               min={projForm.startDate || undefined}
               value={projForm.endDate}
               onChange={(value) => setProjForm({ ...projForm, endDate: value })}
-              placeholder={projForm.isCurrent ? "Proyek masih berjalan" : "Pilih tanggal selesai"}
+              placeholder={projForm.isCurrent ? "Proyek masih berjalan" : "Pilih Tanggal selesai"}
+              language={cvData.Language}
             />
             <label className="mt-2 flex items-center gap-2 text-sm">
               <input
@@ -621,10 +727,35 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             </label>
           </div>
 
+          {/* Tech Stack */}
+          <div>
+            <label className="block text-sm font-bold mb-1">
+              Tech Stack <span className="text-red-700">*</span>
+            </label>
+            <input className={inputClass}
+              placeholder="Python, React, dll"
+              value={projForm.stack}
+              onChange={e=>setProjForm({...projForm,stack:e.target.value})}/>
+          </div>
+
+          {/* Link Portofolio */}
+          <div>
+            <label className="block text-sm font-bold mb-1">
+              Link Portofolio
+            </label>
+            <input
+              className={inputClass}
+              placeholder="https://github.com/username atau https://portfolio.com"
+              value={projForm.link}
+              onChange={e => {setProjForm({ ...projForm, link: e.target.value });
+              }}
+            />
+          </div>
+
           {/* Deskripsi */}
           <div className="md:col-span-2">
             <label className="block text-sm font-bold mb-1">
-              Deskripsi
+              Deskripsi <span className="text-red-700">*</span>
             </label>
             <textarea
               ref={projDescRef}
@@ -640,7 +771,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
           {/* INDICATOR EDIT */}
           {editingProjIndex !== null && (
-            <p className="md:col-span-2 text-[color-mix(in_oklab,var(--color-accent)_68%,black)] text-sm font-semibold">
+            <p className="block text-sm font-bold mb-1">
               Sedang mengedit proyek
             </p>
           )}
@@ -682,7 +813,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                     {e.Nama_Proyek} {e.Role && `| ${e.Role}`}
                   </p>
                   <p className="text-sm text-[color-mix(in_oklab,var(--foreground)_78%,white)]">
-                    {e.Duration}
+                    {formatDurationLabel(e.Duration, cvData.Language)}
                   </p>
                   <p className="text-sm text-[color-mix(in_oklab,var(--foreground)_78%,white)]">
                     {e.Tech_Stack}

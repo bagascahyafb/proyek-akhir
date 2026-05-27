@@ -1,9 +1,9 @@
 // types/index.ts
 export interface EducationItem { Institusi: string; Jurusan: string; Gelar: string; Tahun_Lulus: string; IPK: string; Matkul:string;}
 export interface ExperienceItem { Posisi: string; Perusahaan: string; Durasi: string; Deskripsi: string; Tipe: string; Jenis: string; }
-export interface ProjectItem { Nama_Proyek: string; Role: string; Tech_Stack: string; Duration:string ; Deskripsi: string; }
-export interface CertificateItem { Nama: string; Penerbit: string; Tahun: string; Masa_Berlaku?: string; }
-export interface AwardItem { Nama_Award: string; Pemberi: string; Tahun: string; }
+export interface ProjectItem { Nama_Proyek: string; Role: string; Tech_Stack: string; Duration:string ; link:string ; Deskripsi: string; }
+export interface CertificateItem { Nama: string; Penerbit: string; Tahun: string | number; Masa_Berlaku?: string | number; }
+export interface AwardItem { Nama_Award: string; Judul_Kompetisi?: string; Pemberi: string; Tahun: string; }
 
 export interface CVDataState {
   Personal_Info: { Nama: string; Email: string; HP: string; LinkedIn: string; Alamat: string; Summary: string; Portfolio: string; };
@@ -15,6 +15,25 @@ export interface CVDataState {
   Certifications: CertificateItem[];
   Awards: AwardItem[];
   Language: string;
+}
+
+export interface SelectedCVContent {
+  personalInfo: {
+    nama: boolean;
+    email: boolean;
+    hp: boolean;
+    linkedIn: boolean;
+    alamat: boolean;
+    portfolio: boolean;
+    summary: boolean;
+  };
+  education: boolean[];
+  experience: boolean[];
+  projects: boolean[];
+  hardSkills: boolean[];
+  softSkills: boolean[];
+  certifications: boolean[];
+  awards: boolean[];
 }
 
 // Tipe Props untuk setiap Component Step

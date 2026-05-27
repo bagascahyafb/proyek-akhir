@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import axios from "axios";
 import { StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal";
-import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon } from "./icons";
+import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon, LoadingTwotoneLoop } from "./icons";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -53,12 +53,6 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       return;
     }
 
-    if (!cvData.Personal_Info.Nama) {
-      showAlert("Perhatian", "Isi Nama di Step 1 dulu bro.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
     setLoading(true);
     let savedCount = 0;
     let processingFailedCount = 0;
@@ -66,7 +60,27 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
     const invalidDetails: string[] = [];
     const processingFailedDetails: string[] = [];
     const acceptedEntries: EducationEntry[] = [];
+    const acceptedDocumentNames: string[] = [];
     const warningCandidates: WarningCandidate[] = [];
+
+    const formatDocumentName = (value?: string) => {
+      const cleanValue = value?.trim();
+      return cleanValue && cleanValue !== "-" ? cleanValue : "Tidak terdeteksi";
+    };
+
+    const formatValidationMessage = (
+      status: "warning" | "invalid",
+      score: number | null,
+      fallbackMessage?: string
+    ) => {
+      if (score === null) {
+        return fallbackMessage || "Nama tidak terdeteksi pada dokumen.";
+      }
+
+      return status === "warning"
+        ? `Data Meragukan dengan kemiripan nama ${score}% terhadap referensi. Perlu konfirmasi.`
+        : `Data Tidak sesuai dengan kemiripan nama ${score}% terhadap referensi.`;
+    };
 
     const formatValidationBlock = (
       fileName: string,
@@ -76,10 +90,10 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
     ) => {
       const scoreText = score !== null ? `${score}%` : "Tidak tersedia";
       return [
-        `- ${fileName}`,
-        `  Alasan: ${statusMessage}`,
-        `  Dokumen: "${extractedName}"`,
-        `  Profil: "${cvData.Personal_Info.Nama}"`,
+        `${fileName}`,
+        `Alasan Ditolak : ${statusMessage}`,
+        `Nama dalam Dokumen: "${extractedName}"`,
+        `Nama Profil: "${cvData.Personal_Info.Nama}"`,
       ].join("\n");
     };
 
@@ -110,9 +124,9 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             warningCandidates.push({
               fileName: file.name,
               entry: newEntry,
-              extractedName: validation?.extracted_name || "Tidak terdeteksi",
+              extractedName: formatDocumentName(validation?.extracted_name),
               score,
-              message: validation?.message || "Meragukan",
+              message: formatValidationMessage("warning", score, validation?.message),
             });
             continue;
           }
@@ -122,15 +136,16 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             invalidDetails.push(
               formatValidationBlock(
                 file.name,
-                validation?.message || "Tidak valid",
+                formatValidationMessage("invalid", score, validation?.message),
                 score,
-                validation?.extracted_name || "Tidak terdeteksi"
+                formatDocumentName(validation?.extracted_name)
               )
             );
             continue;
           }
 
           acceptedEntries.push(newEntry);
+          acceptedDocumentNames.push(formatDocumentName(validation?.extracted_name));
           savedCount += 1;
         } catch (error) {
           processingFailedCount += 1;
@@ -160,7 +175,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         const lines: string[] = [`${savedCount + savedWarningCount} file disimpan.`];
 
         if (savedCount > 0) {
-          lines.push(`- Valid: ${savedCount}.`);
+          lines.push(...acceptedDocumentNames.map((documentName) => `- Valid pada dokumen ${documentName}`));
         }
         if (savedWarningCount > 0) {
           lines.push(`- Meragukan disimpan: ${savedWarningCount}.`);
@@ -177,30 +192,25 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           );
         }
         if (warningCandidates.length > 0 && !includeWarningList) {
-          lines.push(`- Meragukan tidak disimpan: ${warningCandidates.length}.`);
+          lines.push(`- Dokumen meragukan tidak disimpan: ${warningCandidates.length}.`);
         }
         if (invalidCount > 0) {
-          lines.push("", `Ditolak tidak valid (${invalidCount}):`, ...invalidDetails);
+          lines.push("", `Dokumen ditolak (${invalidCount}):`, ...invalidDetails);
         }
         if (oversizedDetails.length > 0) {
-          lines.push("", `Ditolak ukuran (${oversizedDetails.length}):`, ...oversizedDetails);
+          lines.push("", `Dokumen ditolak ukuran (${oversizedDetails.length}):`, ...oversizedDetails);
         }
         if (processingFailedCount > 0) {
-          lines.push("", `Gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
+          lines.push("", `Dokumen gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
         }
         return lines.join("\n");
       };
 
       if (warningCandidates.length > 0) {
         const warningMessageLines = [
-          `${warningCandidates.length} file perlu konfirmasi.`,
-          "Simpan file berikut?",
+          buildDetailLines(0, true),
           "",
-          ...warningCandidates.map(
-            (item) => {
-              return formatValidationBlock(item.fileName, item.message, item.score, item.extractedName);
-            }
-          ),
+          "Simpan dokumen meragukan di atas?",
         ];
 
         showConfirm(
@@ -296,12 +306,8 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
   };
 
   return (
-    <div className="bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-8 rounded-2xl shadow-xl border border-[color-mix(in_oklab,var(--color-soft)_40%,white)] text-[var(--foreground)]">
-
-      <h2 className="text-2xl font-bold mb-6 border-b pb-3">
-        2. Pendidikan
-      </h2>
-      <div className="flex gap-2 mb-6 border-b">
+    <div>
+      <div className="flex gap-2 mt-2 mb-6 border-b">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -318,29 +324,37 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         </div>
       {/* ================= UPLOAD FORM ================= */}
       {activeTab === "upload" && (
-            <div key="tab-upload" className="p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
-                <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleUpload} 
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                    disabled={loading} 
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png" 
-                />
+        <div key="tab-upload" className="p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
+          <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleUpload} 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+              disabled={loading} 
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png" 
+          />
+          <div className="flex flex-col items-center">
+              {loading ? (
                 <div className="flex flex-col items-center">
+                  <LoadingTwotoneLoop className="mb-3 h-10 w-10 text-[var(--color-primary)] animate-spin"/>
+                  <p className="font-bold text-[var(--color-primary)] animate-pulse">
+                    Sedang membaca & memvalidasi...
+                  </p>
+                  <p className="mt-1 text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] animate-pulse">
+                    Mohon tunggu sebentar
+                  </p>
+                </div>                    
+              ) : (
+                  <>
                     <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
-                    {loading ? (
-                        <p className="text-[var(--color-primary)] font-bold animate-pulse">Sedang Memvalidasi & OCR...</p>
-                    ) : (
-                        <>
-                            <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Klik atau geser file Ijazah ke sini</p>
-                            <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG (Max 5MB per file)</p>
-                        </>
-                    )}
-                </div>
-            </div>
-        )}
+                    <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Klik atau geser file Ijazah ke sini</p>
+                    <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG (Max 5MB per file)</p>
+                  </>
+              )}
+          </div>
+        </div>
+      )}
       {/* ================= MANUAL FORM ================= */}
       {activeTab === "manual" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
@@ -351,7 +365,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               Nama Institusi <span className="text-red-700">*</span>
             </label>
             <input
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
               placeholder="Universitas Indonesia"
               value={manual.uni || ""}
               onChange={e => setManual({ ...manual, uni: e.target.value })}
@@ -364,7 +378,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               Jurusan <span className="text-red-700">*</span>
             </label>
             <input
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
               placeholder="Teknik Informatika"
               value={manual.jur || ""}
               onChange={e => setManual({ ...manual, jur: e.target.value })}
@@ -377,7 +391,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               Tahun Lulus <span className="text-red-700">*</span>
             </label>
             <input
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
               placeholder="2020"
               value={manual.thn || ""}
               onChange={e => setManual({ ...manual, thn: e.target.value })}
@@ -388,7 +402,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           <div>
             <label className="block text-sm font-bold mb-1">Gelar</label>
             <input
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
               placeholder="S. Kom"
               value={manual.gel || ""}
               onChange={e => setManual({ ...manual, gel: e.target.value })}
@@ -403,7 +417,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               min={0}
               max={4}
               step="0.01"
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
               placeholder="Range 0.00 - 4.00"
               value={manual.ipk || ""}
               onChange={e => setManual({ ...manual, ipk: e.target.value })}
@@ -416,7 +430,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               Mata Kuliah Relevan
             </label>
             <textarea
-              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
               placeholder="Machine Learning, NLP, Data Mining"
               value={manual.matkul || ""}
               onChange={e => setManual({ ...manual, matkul: e.target.value })}
@@ -425,7 +439,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
 
           {/* INDICATOR EDIT */}
           {editingIndex !== null && (
-            <p className="text-sm text-[color-mix(in_oklab,var(--color-accent)_68%,black)] font-semibold md:col-span-2">
+            <p className="block text-sm font-bold mb-1">
               Sedang mengedit data pendidikan
             </p>
           )}

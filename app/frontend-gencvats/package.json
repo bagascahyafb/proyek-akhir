@@ -11,20 +11,21 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@tailwindcss/cli": "^4.3.0",
     "axios": "^1.13.2",
     "next": "16.1.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@playwright/test": "^1.55.0",
+    "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@playwright/test": "^1.55.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.3.0",
     "typescript": "^5"
   }
 }

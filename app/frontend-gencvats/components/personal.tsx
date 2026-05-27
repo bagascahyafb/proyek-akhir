@@ -72,9 +72,16 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
     }));
   };
 
-  const updatePhone = (nextCode: string, nextLocal: string) => {
-    const cleanLocal = nextLocal.replace(/[^\d]/g, "");
-    const combined = cleanLocal ? `${nextCode} ${cleanLocal}` : "";
+  const updatePhone = (
+    nextCode: string,
+    nextLocal: string
+  ) => {
+    const cleanLocal =
+      nextLocal.replace(/[^\d]/g, "");
+  
+    const combined =
+      `${nextCode} ${cleanLocal}`.trim();
+  
     updateInfo("HP", combined);
   };
 
@@ -126,9 +133,8 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
   };
 
   return (
-    <div className="bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-8 rounded-2xl shadow-xl border border-[color-mix(in_oklab,var(--color-soft)_40%,white)] text-[var(--foreground)] animate-fade-in-up">
-      <h2 className="text-2xl font-bold mb-6 text-[color-mix(in_oklab,var(--foreground)_92%,black)] border-b pb-4">1. Informasi Pribadi</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 mt-2 gap-6">
         <div>
           <label className="block text-sm font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-2">
             Nama Lengkap <span className="text-red-700">*</span>

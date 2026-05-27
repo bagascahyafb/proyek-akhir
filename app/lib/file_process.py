@@ -62,7 +62,7 @@ def validate_name_detailed(target_name, extracted_name):
         return {
             "is_valid": True,
             "status": "valid",
-            "message": f"Valid - {similarity_score}%",
+            "message": f"Data sesuai dengan kemiripan {similarity_score}% dengan nama referensi.",
             "similarity_score": similarity_score,
         }
 
@@ -70,14 +70,14 @@ def validate_name_detailed(target_name, extracted_name):
         return {
             "is_valid": False,
             "status": "warning",
-            "message": f"Meragukan - {similarity_score}%",
+            "message": f"Data Meragukan dengan kemiripan {similarity_score}% dengan nama referensi. Periksa kembali data yang diekstrak.",
             "similarity_score": similarity_score,
         }
 
     return {
         "is_valid": False,
         "status": "invalid",
-        "message": f"Tidak Valid - {similarity_score}%",
+        "message": f"Data Tidak sesuai dengan kemiripan {similarity_score}% dengan nama referensi.",
         "similarity_score": similarity_score,
     }
 

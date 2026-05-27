@@ -3,38 +3,2123 @@
 :root {
   --background: #f8fafc;
   --foreground: #1e293b;
+
   --color-surface: #ffffff;
+  --color-surface-container: #f1f5f9;
+
   --color-soft: #d6dee8;
+
   --color-accent: #7c3aed;
   --color-primary: #2563eb;
+
+  --color-muted-blue: #dbeafe;
+
   --color-on-brand: #ffffff;
+
+  --shadow-card:
+    0 10px 30px rgba(15, 23, 42, 0.05);
+
+  --shadow-card-hover:
+    0 20px 50px rgba(15, 23, 42, 0.12);
 }
 
 .dark {
   --background: #0b1220;
   --foreground: #f1f5f9;
+
   --color-surface: #162033;
+  --color-surface-container: #111827;
+
   --color-soft: #2d3b52;
+
   --color-accent: #8b5cf6;
   --color-primary: #3b82f6;
+
+  --color-muted-blue: rgba(59, 130, 246, 0.15);
+
   --color-on-brand: #f8fafc;
+
+  --shadow-card:
+    0 10px 30px rgba(0, 0, 0, 0.25);
+
+  --shadow-card-hover:
+    0 20px 60px rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --color-surface: var(--color-surface);
+  --color-surface-container: var(--color-surface-container);
+
   --color-soft: var(--color-soft);
+
   --color-accent: var(--color-accent);
   --color-primary: var(--color-primary);
+
   --color-on-brand: var(--color-on-brand);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+/* ========================================
+   GLOBAL RESET & NORMALIZATION
+======================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+
+  font-size: clamp(14px, 0.82vw, 16px);
+
+  text-rendering: optimizeLegibility;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
+  overflow-x: hidden;
+
+  min-height: 100vh;
+
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  transition: background-color 0.25s ease, color 0.25s ease;
+
+  font-family:
+    var(--font-geist-sans),
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ========================================
+   GLOBAL FORM NORMALIZATION
+======================================== */
+
+input,
+textarea,
+select {
+  color-scheme: light dark;
+
+  color: var(--foreground);
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-surface) 96%,
+      white
+    );
+}
+
+input::placeholder,
+textarea::placeholder {
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 45%,
+      transparent
+    );
+
+  opacity: 1;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 40%,
+      transparent
+    );
+}
+
+select option {
+  background: var(--color-surface);
+
+  color: var(--foreground);
+}
+
+/* ========================================
+   GLOBAL RESPONSIVE STABILIZATION
+======================================== */
+
+.builder-layout-root,
+.landing-root {
+  overflow-x: hidden;
+}
+
+.builder-main-layout,
+.landing-navbar-inner,
+.landing-hero,
+.landing-section,
+.landing-footer-top,
+.builder-topbar-inner {
+  width: min(100%, 1600px);
+
+  margin-inline: auto;
+}
+
+/* ========================================
+   LANDING ROOT
+======================================== */
+
+.landing-root {
+  position: relative;
+
+  min-height: 100vh;
+
+  overflow-x: hidden;
+
+  background: var(--background);
+
+  color: var(--foreground);
+}
+
+.landing-noise {
+  pointer-events: none;
+
+  position: absolute;
+  inset: 0;
+
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(37, 99, 235, 0.08),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(0, 98, 66, 0.08),
+      transparent 35%
+    );
+}
+
+/* ========================================
+   NAVBAR
+======================================== */
+
+.landing-navbar {
+  position: fixed;
+
+  top: 0;
+  left: 0;
+  right: 0;
+
+  z-index: 999;
+
+  border-bottom:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 60%,
+      white
+    );
+
+  backdrop-filter: blur(22px);
+
+  background:
+    color-mix(
+      in oklab,
+      var(--background) 78%,
+      transparent
+    );
+}
+
+.landing-navbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  padding:
+    1rem
+    clamp(1rem, 2vw, 2rem);
+}
+
+.landing-brand {
+  display: flex;
+  align-items: center;
+
+  gap: 0.7rem;
+
+  font-size:
+    clamp(1.2rem, 2vw, 1.4rem);
+
+  font-weight: 800;
+
+  color: var(--foreground);
+}
+
+.landing-nav-links {
+  display: flex;
+  align-items: center;
+
+  gap: clamp(1rem, 2vw, 2rem);
+}
+
+.landing-nav-links a {
+  position: relative;
+
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 76%,
+      white
+    );
+
+  transition:
+    color 0.25s ease;
+}
+
+.landing-nav-links a:hover {
+  color: var(--foreground);
+}
+
+.landing-nav-links a::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  bottom: -0.35rem;
+
+  width: 0%;
+  height: 2px;
+
+  border-radius: 9999px;
+
+  background: var(--color-primary);
+
+  transition:
+    width 0.25s ease;
+}
+
+.landing-nav-links a:hover::after {
+  width: 100%;
+}
+
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+
+  gap: 1rem;
+}
+
+/* ========================================
+   BUTTONS
+======================================== */
+
+.landing-primary-button,
+.landing-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 44px;
+
+  border-radius: 9999px;
+
+  font-size: 0.95rem;
+  font-weight: 700;
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.landing-primary-button {
+  padding:
+    0.95rem
+    1.6rem;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #3b82f6
+    );
+
+  color: white;
+
+  box-shadow:
+    0 10px 30px rgba(37, 99, 235, 0.22);
+}
+
+.landing-primary-button:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 18px 40px rgba(37, 99, 235, 0.3);
+}
+
+.landing-primary-button.large {
+  padding:
+    1rem
+    1.9rem;
+}
+
+.landing-secondary-button {
+  padding:
+    0.95rem
+    1.4rem;
+
+  border:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 72%,
+      white
+    );
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-surface) 92%,
+      white
+    );
+}
+
+/* ========================================
+   HERO
+======================================== */
+
+.landing-hero {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  align-items: center;
+
+  gap:
+    clamp(2rem, 5vw, 5rem);
+
+  padding:
+    8rem
+    clamp(1rem, 3vw, 2rem)
+    5rem;
+}
+
+.landing-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.landing-chip {
+  display: inline-flex;
+
+  margin-bottom: 1.4rem;
+
+  padding:
+    0.5rem
+    1rem;
+
+  border-radius: 9999px;
+
+  background: var(--color-muted-blue);
+
+  color: var(--color-primary);
+
+  font-size: 0.8rem;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+}
+
+.landing-hero h1 {
+  margin-bottom: 1.3rem;
+
+  font-size:
+    clamp(2.8rem, 5vw, 5rem);
+
+  font-weight: 800;
+
+  line-height: 1.02;
+
+  letter-spacing: -0.05em;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--foreground),
+      color-mix(
+        in oklab,
+        var(--color-primary) 55%,
+        white
+      )
+    );
+
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing-hero p {
+  max-width: 38rem;
+
+  font-size: 1rem;
+  line-height: 1.9;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 72%,
+      white
+    );
+}
+
+.landing-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 1rem;
+
+  margin-top: 2rem;
+}
+
+.landing-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 0.8rem;
+
+  margin-top: 2rem;
+}
+
+.landing-hero-badges span {
+  padding:
+    0.6rem
+    1rem;
+
+  border-radius: 9999px;
+
+  border:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 70%,
+      white
+    );
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-surface) 92%,
+      white
+    );
+
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+/* ========================================
+   PREVIEW
+======================================== */
+
+.landing-hero-preview {
+  width: min(100%, 420px);
+
+  margin-inline: auto;
+}
+
+.landing-preview-glow {
+  position: absolute;
+  inset: 10%;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(37, 99, 235, 0.22),
+      transparent 70%
+    );
+
+  filter: blur(60px);
+}
+
+.landing-preview-card,
+.landing-about-image-wrapper,
+.landing-preview-wrapper {
+  position: relative;
+
+  overflow: hidden;
+
+  isolation: isolate;
+
+  border-radius:
+    clamp(1rem, 1.5vw, 2rem);
+
+  border:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 70%,
+      white
+    );
+
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in oklab,
+        var(--color-surface) 96%,
+        white
+      ),
+      color-mix(
+        in oklab,
+        var(--color-surface-container) 90%,
+        white
+      )
+    );
+
+  box-shadow:
+    0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+.landing-preview-image,
+.landing-about-image {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* ========================================
+   SECTION
+======================================== */
+
+.landing-section {
+  position: relative;
+
+  padding:
+    clamp(4rem, 8vw, 7rem)
+    clamp(1rem, 3vw, 2rem);
+}
+
+.landing-section-soft {
+  max-width: 100%;
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-surface-container) 86%,
+      white
+    );
+}
+
+.landing-section-heading {
+  margin-bottom:
+    clamp(2rem, 5vw, 4rem);
+}
+
+.landing-section-heading.center {
+  text-align: center;
+}
+
+.landing-section-heading h2 {
+  margin-bottom: 1rem;
+
+  font-size:
+    clamp(2rem, 4vw, 3.2rem);
+
+  font-weight: 800;
+
+  line-height: 1.08;
+
+  letter-spacing: -0.04em;
+}
+
+.landing-section-heading p {
+  max-width: 720px;
+
+  margin-inline: auto;
+
+  line-height: 1.9;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 70%,
+      white
+    );
+}
+
+/* ========================================
+   GRID
+======================================== */
+
+.landing-features-grid,
+.landing-steps-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap:
+    clamp(1rem, 2vw, 1.5rem);
+}
+
+/* ========================================
+   FEATURES
+======================================== */
+
+.landing-features-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap:
+    clamp(1rem, 2vw, 1.5rem);
+}
+
+.landing-feature-card {
+  position: relative;
+
+  overflow: hidden;
+
+  padding:
+    clamp(1.2rem, 2vw, 1.8rem);
+
+  border-radius:
+    clamp(1rem, 1.5vw, 1.5rem);
+
+  border:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 70%,
+      white
+    );
+
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in oklab,
+        var(--color-surface) 96%,
+        white
+      ),
+      color-mix(
+        in oklab,
+        var(--color-surface-container) 90%,
+        white
+      )
+    );
+
+  box-shadow: var(--shadow-card);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.landing-feature-card:hover {
+  transform: translateY(-6px);
+
+  border-color:
+    color-mix(
+      in oklab,
+      var(--color-primary) 40%,
+      white
+    );
+
+  box-shadow: var(--shadow-card-hover);
+}
+
+.landing-feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 3.5rem;
+  height: 3.5rem;
+
+  margin-bottom: 1.2rem;
+
+  border-radius: 1rem;
+}
+
+.landing-feature-card h3 {
+  margin-bottom: 0.7rem;
+
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.landing-feature-card p {
+  font-size: 0.94rem;
+
+  line-height: 1.8;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 70%,
+      white
+    );
+}
+
+/* ========================================
+   STEPS
+======================================== */
+
+.landing-steps-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap:
+    clamp(1rem, 2vw, 1.5rem);
+}
+
+.landing-step-card {
+  padding:
+    clamp(1.2rem, 2vw, 1.8rem);
+
+  border-radius:
+    clamp(1rem, 1.5vw, 1.5rem);
+
+  border:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 70%,
+      white
+    );
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-surface) 94%,
+      white
+    );
+
+  box-shadow: var(--shadow-card);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.landing-step-card:hover {
+  transform: translateY(-6px);
+
+  box-shadow: var(--shadow-card-hover);
+}
+
+.landing-step-card span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 2.8rem;
+  height: 2.8rem;
+
+  margin-bottom: 1rem;
+
+  border-radius: 9999px;
+
+  background: var(--color-primary);
+
+  color: white;
+
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.landing-step-card h3 {
+  margin-bottom: 0.7rem;
+
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.landing-step-card p {
+  font-size: 0.94rem;
+
+  line-height: 1.8;
+}
+
+/* ========================================
+   ABOUT
+======================================== */
+
+.landing-about-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  align-items: center;
+
+  gap:
+    clamp(2rem, 5vw, 4rem);
+}
+
+.landing-about-content {
+  position: relative;
+  z-index: 2;
+}
+
+.landing-section-label {
+  display: inline-block;
+
+  margin-bottom: 1rem;
+
+  color: var(--color-primary);
+
+  font-size: 0.78rem;
+  font-weight: 800;
+
+  letter-spacing: 0.12em;
+}
+
+.landing-about-content h2 {
+  margin-bottom: 1.3rem;
+
+  font-size:
+    clamp(2rem, 4vw, 3rem);
+
+  font-weight: 800;
+
+  line-height: 1.08;
+
+  letter-spacing: -0.04em;
+}
+
+.landing-about-content p {
+  margin-bottom: 1rem;
+
+  font-size: 0.96rem;
+
+  line-height: 1.9;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 72%,
+      white
+    );
+}
+
+.landing-about-list {
+  display: grid;
+
+  gap: 0.9rem;
+
+  margin-top: 1.8rem;
+}
+
+.landing-about-list li {
+  position: relative;
+
+  padding-left: 1.4rem;
+
+  font-size: 0.95rem;
+
+  line-height: 1.7;
+}
+
+.landing-about-list li::before {
+  content: "✓";
+
+  position: absolute;
+  left: 0;
+
+  color: var(--color-primary);
+
+  font-weight: 700;
+}
+
+/* ========================================
+   PROBLEM SECTION
+======================================== */
+
+.landing-problem-box {
+  max-width: 900px;
+
+  margin: 0 auto;
+  padding: 3rem;
+
+  text-align: center;
+
+  border-radius: 2rem;
+
+  border:
+    1px solid color-mix(in oklab,
+      var(--color-soft) 72%,
+      white);
+
+  background:
+    linear-gradient(135deg,
+      color-mix(in oklab,
+        var(--color-surface) 94%,
+        white),
+      color-mix(in oklab,
+        var(--color-surface-container) 88%,
+        white));
+
+  box-shadow: var(--shadow-card);
+}
+
+.landing-problem-box h2 {
+  margin-bottom: 1rem;
+
+  font-family: Manrope, sans-serif;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 800;
+}
+
+.landing-problem-box p {
+  max-width: 700px;
+
+  margin: 0 auto 1rem;
+
+  line-height: 1.9;
+
+  color:
+    color-mix(in oklab,
+      var(--foreground) 72%,
+      white);
+}
+
+/* ========================================
+   FOOTER
+======================================== */
+
+.landing-footer {
+  padding: 2rem 1.5rem 3rem;
+
+  border-top:
+    1px solid color-mix(in oklab,
+      var(--color-soft) 72%,
+      white);
+}
+
+/* ========================================
+   ANIMATION
+======================================== */
+
+@keyframes landingFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   BUILDER LAYOUT
+======================================== */
+
+.builder-layout-root {
+  min-height: 100vh;
+
+  overflow-x: hidden;
+
+  background:
+    color-mix(
+      in oklab,
+      var(--background) 96%,
+      white
+    );
+}
+
+/* ========================================
+   TOPBAR
+======================================== */
+
+.builder-topbar {
+  position: sticky;
+  top: 0;
+
+  z-index: 60;
+
+  border-bottom:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 60%,
+      white
+    );
+
+  backdrop-filter: blur(18px);
+
+  background:
+    color-mix(
+      in oklab,
+      var(--background) 82%,
+      white
+    );
+}
+
+.builder-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  padding:
+    1rem
+    clamp(1rem, 2vw, 2rem);
+}
+
+.builder-topbar-left {
+  display: flex;
+  align-items: center;
+
+  gap: clamp(1.5rem, 3vw, 3rem);
+}
+
+.builder-logo-group {
+  display: flex;
+  align-items: center;
+
+  gap: 0.8rem;
+
+  font-size:
+    clamp(1.35rem, 2vw, 1.8rem);
+
+  font-weight: 800;
+
+  color: var(--foreground);
+}
+
+.builder-nav-links {
+  display: flex;
+  align-items: center;
+
+  gap: clamp(1rem, 2vw, 1.8rem);
+}
+
+.builder-nav-links a {
+  position: relative;
+
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 78%,
+      white
+    );
+
+  transition:
+    color 0.25s ease;
+}
+
+.builder-nav-links a:hover {
+  color: var(--foreground);
+}
+
+.builder-nav-links a.active {
+  color: var(--color-primary);
+}
+
+.builder-nav-links a.active::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  bottom: -0.45rem;
+
+  width: 100%;
+  height: 2px;
+
+  border-radius: 9999px;
+
+  background: var(--color-primary);
+}
+
+.builder-topbar-right {
+  display: flex;
+  align-items: center;
+
+  gap: 1rem;
+}
+
+.builder-save-button {
+  border: none;
+
+  min-height: 44px;
+
+  padding:
+    0.78rem
+    1.2rem;
+
+  border-radius: 0.9rem;
+
+  font-size: 0.92rem;
+  font-weight: 700;
+
+  color: white;
+
+  background: var(--color-primary);
+
+  box-shadow:
+    0 10px 24px rgba(37, 99, 235, 0.18);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.builder-save-button:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 16px 36px rgba(37, 99, 235, 0.25);
+}
+
+/* ========================================
+   MAIN LAYOUT
+======================================== */
+
+.builder-main-layout {
+  display: grid;
+
+  grid-template-columns:
+    clamp(215px, 16vw, 245px)
+    minmax(0, 1fr);
+
+  width: 100%;
+  max-width: 1600px;
+
+  min-height:
+    calc(100vh - 76px);
+
+  margin-inline: auto;
+}
+
+/* ========================================
+   SIDEBAR
+======================================== */
+
+.builder-sidebar {
+  position: sticky;
+  top: 76px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  height:
+    calc(100vh - 76px);
+
+  padding:
+    clamp(1rem, 1.5vw, 1.5rem)
+    clamp(0.8rem, 1vw, 1rem);
+
+  border-right:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 65%,
+      white
+    );
+
+  background:
+    color-mix(
+      in oklab,
+      var(--background) 98%,
+      white
+    );
+}
+
+.builder-sidebar-header h2 {
+  margin-bottom: 0.25rem;
+
+  font-size:
+    clamp(1.4rem, 2vw, 1.9rem);
+
+  font-weight: 800;
+
+  color: var(--color-primary);
+}
+
+.builder-sidebar-header p {
+  font-size: 0.9rem;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 68%,
+      white
+    );
+}
+
+.builder-steps-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.7rem;
+
+  margin-top: 1.8rem;
+}
+
+.builder-step-item {
+  display: flex;
+  align-items: center;
+
+  gap: 0.9rem;
+
+  width: 100%;
+
+  border: none;
+
+  padding:
+    0.82rem
+    0.95rem;
+
+  border-radius: 1rem;
+
+  background: transparent;
+
+  text-align: left;
+
+  font-size: 0.92rem;
+  font-weight: 600;
+
+  color: var(--foreground);
+
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.builder-step-item:hover {
+  transform: translateX(2px);
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-primary) 10%,
+      transparent
+    );
+}
+
+.builder-step-item.active {
+  background:
+    color-mix(
+      in oklab,
+      var(--color-primary) 18%,
+      transparent
+    );
+
+  color: var(--color-primary);
+}
+
+.builder-step-item.locked {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+}
+
+.builder-step-item.locked:hover {
+  transform: none;
+
+  background: transparent;
+}
+
+.builder-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 1.9rem;
+  height: 1.9rem;
+
+  border-radius: 9999px;
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-primary) 14%,
+      transparent
+    );
+
+  color: var(--color-primary);
+
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.builder-step-item.active
+.builder-step-number {
+  background: var(--color-primary);
+
+  color: white;
+}
+
+.builder-preview-button {
+  border: none;
+
+  min-height: 44px;
+
+  padding:
+    0.85rem
+    1rem;
+
+  border-radius: 1rem;
+
+  font-size: 0.92rem;
+  font-weight: 700;
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-surface-container) 92%,
+      white
+    );
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 76%,
+      white
+    );
+
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease;
+}
+
+.builder-preview-button:hover {
+  transform: translateY(-2px);
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-soft) 35%,
+      white
+    );
+}
+
+/* ========================================
+   CONTENT
+======================================== */
+
+.builder-content-area {
+  width: min(100%, 1020px);
+
+  margin-inline: auto;
+
+  padding:
+    clamp(1rem, 2vw, 2rem);
+}
+
+.builder-content-header {
+  margin-bottom: 2rem;
+}
+
+.builder-step-badge {
+  display: inline-flex;
+
+  margin-bottom: 1rem;
+
+  padding:
+    0.45rem
+    0.9rem;
+
+  border-radius: 9999px;
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-primary) 12%,
+      white
+    );
+
+  color: var(--color-primary);
+
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.builder-content-header h1 {
+  margin-bottom: 0.8rem;
+
+  font-size:
+    clamp(2rem, 3vw, 3rem);
+
+  font-weight: 800;
+
+  line-height: 1.08;
+
+  letter-spacing: -0.04em;
+}
+
+.builder-content-header p {
+  max-width: 720px;
+
+  font-size: 0.98rem;
+  line-height: 1.8;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 72%,
+      white
+    );
+}
+
+/* ========================================
+   FORM CARD
+======================================== */
+
+.builder-form-card {
+  border:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-soft) 65%,
+      white
+    );
+
+  border-radius:
+    clamp(1rem, 1.5vw, 1.5rem);
+
+  padding:
+    clamp(1rem, 1.5vw, 1.5rem);
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-surface) 96%,
+      white
+    );
+
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.builder-form-card input,
+.builder-form-card textarea,
+.builder-form-card select {
+  min-height: 44px;
+
+  padding:
+    0.78rem
+    1rem;
+
+  font-size: 0.95rem;
+}
+
+.builder-form-card textarea {
+  min-height: 120px;
+}
+
+/* ========================================
+   TIP BOX
+======================================== */
+
+.builder-tip-box {
+  margin-top: 1.5rem;
+
+  padding:
+    1.4rem
+    1.5rem;
+
+  border-radius:
+    clamp(1rem, 1.5vw, 1.3rem);
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-primary) 10%,
+      white
+    );
+
+  border:
+    1px solid
+    color-mix(
+      in oklab,
+      var(--color-primary) 15%,
+      white
+    );
+}
+
+.builder-tip-box h3 {
+  margin-bottom: 0.5rem;
+
+  font-size: 1.1rem;
+  font-weight: 700;
+
+  color: var(--color-primary);
+}
+
+.builder-tip-box p {
+  font-size: 0.94rem;
+
+  line-height: 1.7;
+
+  color:
+    color-mix(
+      in oklab,
+      var(--foreground) 72%,
+      white
+    );
+}
+
+/* ========================================
+   ULTRA WIDE
+======================================== */
+
+@media (min-width: 1600px) {
+  .builder-main-layout,
+  .landing-navbar-inner,
+  .landing-hero,
+  .landing-section,
+  .landing-footer-top,
+  .builder-topbar-inner {
+    width: min(100%, 1700px);
+  }
+
+  .builder-content-area {
+    width: min(100%, 1150px);
+  }
+}
+
+/* ========================================
+   LAPTOP
+======================================== */
+
+@media (max-width: 1280px) {
+  .landing-hero {
+    gap: 3rem;
+  }
+
+  .landing-about-grid {
+    gap: 3rem;
+  }
+
+  .builder-main-layout {
+    grid-template-columns:
+      220px
+      minmax(0, 1fr);
+  }
+}
+
+/* ========================================
+   TABLET
+======================================== */
+
+@media (max-width: 1024px) {
+  .builder-main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-sidebar {
+    position: relative;
+
+    top: 0;
+
+    height: auto;
+
+    border-right: none;
+
+    border-bottom:
+      1px solid
+      color-mix(
+        in oklab,
+        var(--color-soft) 65%,
+        white
+      );
+  }
+
+  .builder-preview-button {
+    margin-top: 2rem;
+  }
+
+  .landing-hero,
+  .landing-about-grid,
+  .landing-features-grid,
+  .landing-steps-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-hero {
+    text-align: center;
+  }
+
+  .landing-hero p {
+    margin-inline: auto;
+  }
+
+  .landing-hero-actions,
+  .landing-hero-badges {
+    justify-content: center;
+  }
+
+  .landing-hero-preview {
+    margin-top: 2rem;
+  }
+
+  .landing-footer-top {
+    flex-direction: column;
+
+    gap: 3rem;
+  }
+}
+
+/* ========================================
+   MOBILE
+======================================== */
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+
+  /* =========================
+     TOPBAR
+  ========================= */
+
+  .builder-topbar-inner {
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    gap: 1.25rem;
+  }
+
+  .builder-topbar-left {
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    gap: 1.25rem;
+  }
+
+  .builder-nav-links {
+    flex-wrap: wrap;
+
+    gap: 1rem;
+  }
+
+  .landing-nav-links {
+    display: none;
+  }
+
+  /* =========================
+     CONTENT
+  ========================= */
+
+  .builder-content-area,
+  .landing-section {
+    padding: 1rem;
+  }
+
+  .builder-form-card,
+  .landing-contact-form,
+  .landing-feature-card,
+  .landing-step-card,
+  .landing-problem-box {
+    padding: 1rem;
+  }
+
+  /* =========================
+     HERO
+  ========================= */
+
+  .landing-hero {
+    padding:
+      7rem
+      1rem
+      4rem;
+  }
+
+  .landing-hero h1 {
+    font-size:
+      clamp(2.2rem, 10vw, 3.4rem);
+  }
+
+  .landing-section-heading h2,
+  .landing-about-content h2,
+  .builder-content-header h1 {
+    font-size:
+      clamp(1.8rem, 8vw, 2.5rem);
+  }
+
+  /* =========================
+     SIDEBAR
+  ========================= */
+
+  .builder-sidebar {
+    padding: 1rem;
+  }
+
+  .builder-steps-list {
+    gap: 0.6rem;
+  }
+
+  .builder-step-item {
+    padding:
+      0.78rem
+      0.9rem;
+
+    font-size: 0.88rem;
+  }
+
+  /* =========================
+     BUTTONS
+  ========================= */
+
+  .landing-primary-button,
+  .landing-secondary-button,
+  .builder-save-button,
+  .builder-preview-button {
+    width: 100%;
+  }
+
+  .landing-hero-actions {
+    flex-direction: column;
+  }
+
+  /* =========================
+     FOOTER
+  ========================= */
+
+  .landing-footer-links {
+    flex-direction: column;
+
+    gap: 2rem;
+  }
+}
+
+/* ========================================
+   SMALL MOBILE
+======================================== */
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13.5px;
+  }
+
+  .landing-hero {
+    padding-top: 6.5rem;
+  }
+
+  .landing-hero h1 {
+    line-height: 1.08;
+  }
+
+  .builder-content-area {
+    padding: 0.8rem;
+  }
+
+  .builder-form-card {
+    border-radius: 1rem;
+  }
+
+  .landing-feature-card,
+  .landing-step-card,
+  .landing-contact-form {
+    border-radius: 1rem;
+  }
+
+  .builder-step-item {
+    gap: 0.7rem;
+  }
+
+  .builder-step-number {
+    width: 1.7rem;
+    height: 1.7rem;
+
+    font-size: 0.75rem;
+  }
+}
+
+/* ========================================
+   GLOBAL TRANSITION POLISH
+======================================== */
+
+button,
+a,
+input,
+textarea,
+select,
+.landing-feature-card,
+.landing-step-card,
+.builder-form-card,
+.builder-step-item,
+.builder-preview-button,
+.builder-save-button {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease,
+    opacity 0.25s ease;
+}
+
+/* ========================================
+   GLASS EFFECT CONSISTENCY
+======================================== */
+
+.builder-topbar,
+.landing-navbar {
+  backdrop-filter: blur(18px);
+
+  -webkit-backdrop-filter: blur(18px);
+}
+
+/* ========================================
+   CARD HOVER IMPROVEMENT
+======================================== */
+
+.landing-feature-card:hover,
+.landing-step-card:hover,
+.builder-form-card:hover {
+  box-shadow:
+    0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+/* ========================================
+   BUTTON PRESS EFFECT
+======================================== */
+
+.landing-primary-button:active,
+.landing-secondary-button:active,
+.builder-save-button:active,
+.builder-preview-button:active {
+  transform: scale(0.98);
+}
+
+/* ========================================
+   INPUT FOCUS IMPROVEMENT
+======================================== */
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+
+  border-color: var(--color-primary);
+
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+/* ========================================
+   LOADING ANIMATION
+======================================== */
+
+.animate-slow-spin {
+  animation:
+    slowSpin 1.6s linear infinite;
+}
+
+@keyframes slowSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   FADE UP ANIMATION
+======================================== */
+
+.animate-fade-up {
+  animation:
+    fadeUp 0.5s ease forwards;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+/* ========================================
+   SCROLLBAR
+======================================== */
+
+::-webkit-scrollbar {
+  width: 10px;
+
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background:
+    color-mix(
+      in oklab,
+      var(--background) 92%,
+      white
+    );
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+
+  background:
+    color-mix(
+      in oklab,
+      var(--color-soft) 65%,
+      white
+    );
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background:
+    color-mix(
+      in oklab,
+      var(--color-primary) 35%,
+      white
+    );
+}
+
+/* ========================================
+   DARKMODE DENSITY IMPROVEMENT
+======================================== */
+
+.dark .builder-form-card,
+.dark .landing-feature-card,
+.dark .landing-step-card,
+.dark .landing-contact-form,
+.dark .landing-preview-card,
+.dark .landing-about-image-wrapper {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(22, 32, 51, 0.96),
+      rgba(17, 24, 39, 0.92)
+    );
+
+  border-color:
+    rgba(255, 255, 255, 0.05);
+}
+
+.dark .builder-sidebar {
+  background:
+    rgba(11, 18, 32, 0.94);
+}
+
+.dark .builder-topbar,
+.dark .landing-navbar {
+  background:
+    rgba(11, 18, 32, 0.78);
+}
+
+/* ========================================
+   IMAGE STABILIZATION
+======================================== */
+
+img {
+  image-rendering: auto;
+}
+
+/* ========================================
+   SELECTION COLOR
+======================================== */
+
+::selection {
+  background:
+    rgba(59, 130, 246, 0.22);
+
+  color: var(--foreground);
+}
+
+/* ========================================
+   PERFORMANCE OPTIMIZATION
+======================================== */
+
+.landing-feature-card,
+.landing-step-card,
+.builder-form-card,
+.builder-step-item {
+  will-change:
+    transform,
+    opacity;
+}
+
+/* ========================================
+   REDUCE MOTION SUPPORT
+======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+
+    animation-iteration-count: 1 !important;
+
+    transition-duration: 0.01ms !important;
+
+    scroll-behavior: auto !important;
+  }
 }

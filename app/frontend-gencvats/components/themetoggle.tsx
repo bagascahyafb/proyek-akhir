@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { DarkTheme, LightTheme } from "@/components/icons";
 
 const STORAGE_KEY = "theme";
 
@@ -35,18 +36,60 @@ export default function ThemeToggle({ variant = "fixed" }: ThemeToggleProps) {
   }
 
   const baseClass =
-    "cursor-pointer rounded-full border border-[color-mix(in_oklab,var(--color-soft)_72%,white)] bg-[color-mix(in_oklab,var(--color-surface)_92%,white)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-lg backdrop-blur-md transition hover:border-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)]";
+  "group cursor-pointer rounded-full border border-[color-mix(in_oklab,var(--color-soft)_72%,white)] bg-[color-mix(in_oklab,var(--color-surface)_92%,white)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-lg backdrop-blur-md transition-all duration-300 ease-out hover:scale-[1.03] hover:border-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] active:scale-95";
 
   const positionClass = variant === "fixed" ? "fixed right-4 top-4 z-[120]" : "z-30";
 
   return (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      className={`${positionClass} ${baseClass}`}
-      aria-label="Toggle theme"
+  <button
+    type="button"
+    onClick={toggleTheme}
+    className={`${positionClass} ${baseClass} flex items-center gap-3`}
+    aria-label="Toggle theme"
+  >
+    <div
+      className="
+        relative
+        flex
+        h-6
+        w-12
+        items-center
+        rounded-full
+        bg-[color-mix(in_oklab,var(--color-soft)_40%,white)]
+        p-1
+        transition-all
+        duration-300
+      "
     >
-      {theme === "dark" ? "Light Mode" : "Dark Mode"}
-    </button>
+      <div
+        className={`
+          absolute
+          flex
+          h-4
+          w-4
+          items-center
+          justify-center
+          rounded-full
+          bg-[var(--color-primary)]
+          text-white
+          shadow-md
+          transition-all
+          duration-300
+          ease-out
+          ${
+            theme === "dark"
+              ? "translate-x-6"
+              : "translate-x-0"
+          }
+        `}
+      >
+        {theme === "dark" ? (
+          <LightTheme className="h-3 w-3" />
+        ) : (
+          <DarkTheme className="h-3 w-3" />
+        )}
+      </div>
+    </div>
+  </button>
   );
 }

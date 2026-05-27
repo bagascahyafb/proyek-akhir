@@ -29,21 +29,28 @@ def run_ai_ocr(image, jenis):
         """
     else:
         prompt = """
+        
         Lakukan OCR dan ekstraksi entitas dari gambar sertifikat ini.
 
         Output wajib JSON murni dengan keys:
-        - "Nama_Peserta"
-        - "Judul_Sertifikat"
-        - "id_sertifikat"
-        - "Lembaga_Penerbit"
-        - "Skill"
-        - "Tahun_Sertifikat"
-        - "Masa_Berlaku"
-        - "Tipe_Skill" ("Hard Skill" / "Soft Skill")
-        - "Kategori" ("Sertifikasi" / "Penghargaan")
+            - "Nama_Peserta"
+            - "Judul_Sertifikat"
+            - "id_sertifikat"
+            - "Lembaga_Penerbit"
+            - "Skill"
+            - "Tahun_Sertifikat"
+            - "Masa_Berlaku"
+            - "Tipe_Skill" ("Hard Skill" / "Soft Skill")
+            - "Kategori" ("Sertifikasi" / "Penghargaan")
 
-        Aturan:
-        Jika data tidak ditemukan, isi "". Jangan mengarang data, tapi perbaiki typo jika jelas salah. Hanya output JSON murni.
+            Aturan:
+            - "Judul_Sertifikat" adalah nama utama sertifikat, penghargaan, kompetisi, pelatihan, ujian, atau pencapaian yang diberikan pada dokumen.
+            - Jangan gunakan kata generik seperti: "Certificate", "Sertifikat", "Certificate of Completion", "Certificate of Achievement", atau "Piagam Penghargaan" sebagai Judul_Sertifikat jika ada nama kegiatan/pencapaian yang lebih spesifik.
+            - Prioritaskan nama yang paling merepresentasikan isi utama dokumen.
+
+            Contoh:
+            - "TABLE MANNER", "TOEFL ITP", "Junior Web Developer", "Juara 1 Lomba UI/UX", "Workshop Keterampilan Digital", Jika data tidak ditemukan, isi "". Jangan mengarang data. Perbaiki typo jika jelas salah.
+            - Hanya output JSON murni.
         """
 
     try:

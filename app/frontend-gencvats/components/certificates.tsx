@@ -2,23 +2,39 @@ import { useState, useRef } from "react";
 import axios from "axios";
 import { StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal";
-import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon } from "./icons";
+import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon, LoadingTwotoneLoop } from "./icons";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
-const extractYear = (value?: string) => {
+const capitalizeEachWord = (
+  text?: string
+) => {
+  if (!text) return "";
+
+  return text
+    .toLowerCase()
+    .replace(/\b\w/g, (char) =>
+      char.toUpperCase()
+    );
+};
+
+const normalizeYearInput = (value: string) => value.replace(/\D/g, "").slice(0, 4);
+
+const isFourDigitYear = (value: string) => /^\d{4}$/.test(value);
+
+const extractYear = (value?: string | number) => {
   if (!value) return "";
-  const match = value.match(/\b(?:19|20)\d{2}\b/);
+  const match = String(value).match(/\b(?:19|20)\d{2}\b/);
   return match ? match[0] : "";
 };
 
-const extractLastYear = (value?: string) => {
+const extractLastYear = (value?: string | number) => {
   if (!value) return "";
-  const matches = value.match(/\b(?:19|20)\d{2}\b/g);
+  const matches = String(value).match(/\b(?:19|20)\d{2}\b/g);
   return matches ? matches[matches.length - 1] : "";
 };
 
-const formatCertificateYearRange = (startYear?: string, expiryYear?: string) => {
+const formatCertificateYearRange = (startYear?: string | number, expiryYear?: string | number) => {
   const start = extractYear(startYear);
   const expiry = extractLastYear(expiryYear);
 
@@ -32,7 +48,14 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [uploadCategory, setUploadCategory] = useState<"Keahlian" | "Penghargaan">("Keahlian");
-  const [manualForm, setManualForm] = useState({ kategori: "Keahlian", nama: "", penerbit: "", tahun: "", masaBerlaku: "" });
+  const [manualForm, setManualForm] = useState({
+    kategori: "Keahlian",
+    nama: "",
+    judulKompetisi: "",
+    penerbit: "",
+    tahun: "",
+    masaBerlaku: "",
+  });
   const [editingState, setEditingState] = useState<{ type: "Keahlian" | "Kompetisi"; index: number } | null>(null);
 
   const { modalProps, showAlert, showConfirm, showSuccess } = useModal();
@@ -85,7 +108,27 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     const processingFailedDetails: string[] = [];
 
     const acceptedResults: UploadResult[] = [];
+    const acceptedDocumentNames: string[] = [];
     const warningCandidates: WarningCandidate[] = [];
+
+    const formatDocumentName = (value?: string) => {
+      const cleanValue = value?.trim();
+      return cleanValue && cleanValue !== "-" ? cleanValue : "Tidak terdeteksi";
+    };
+
+    const formatValidationMessage = (
+      status: "warning" | "invalid",
+      score: number | null,
+      fallbackMessage?: string
+    ) => {
+      if (score === null) {
+        return fallbackMessage || "Nama tidak terdeteksi pada dokumen.";
+      }
+
+      return status === "warning"
+        ? `Data Meragukan dengan kemiripan nama ${score}% terhadap referensi. Perlu konfirmasi.`
+        : `Data Tidak sesuai dengan kemiripan nama ${score}% terhadap referensi.`;
+    };
 
     const formatValidationBlock = (
       fileName: string,
@@ -95,11 +138,10 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     ) => {
       const scoreText = score !== null ? `${score}%` : "Tidak tersedia";
       return [
-        `- ${fileName}`,
-        `  Alasan: ${statusMessage}`,
-        `  Skor: ${scoreText}`,
-        `  Dokumen: "${extractedName}"`,
-        `  Profil: "${cvData.Personal_Info.Nama}"`,
+        `${fileName}`,
+        `Alasan Ditolak : ${statusMessage}`,
+        `Nama Dokumen : "${extractedName}"`,
+        `Nama Profil : "${cvData.Personal_Info.Nama}"`,
       ].join("\n");
     };
 
@@ -111,13 +153,13 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
 
       if (uploadCategory === "Penghargaan") {
         result.award = {
-          Nama_Award: data.Judul_Sertifikat || "Tanpa Judul",
+          Nama_Award: capitalizeEachWord(data.Judul_Sertifikat) || "Tanpa Judul",
           Pemberi: data.Lembaga_Penerbit || "Penyelenggara Tidak Terdeteksi",
           Tahun: data.Tahun_Sertifikat || "-",
         };
       } else {
         result.certification = {
-          Nama: data.Judul_Sertifikat || "Tanpa Judul",
+          Nama: capitalizeEachWord(data.Judul_Sertifikat) || "Tanpa Judul",
           Penerbit: data.Lembaga_Penerbit || "Penerbit Tidak Terdeteksi",
           Tahun: data.Tahun_Sertifikat || "-",
           Masa_Berlaku: data.Masa_Berlaku || "",
@@ -181,9 +223,9 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             warningCandidates.push({
               fileName: file.name,
               result,
-              extractedName: validation?.extracted_name || "Tidak terdeteksi",
+              extractedName: formatDocumentName(validation?.extracted_name),
               score,
-              message: validation?.message || "Meragukan",
+              message: formatValidationMessage("warning", score, validation?.message),
             });
             continue;
           }
@@ -193,15 +235,16 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             invalidDetails.push(
               formatValidationBlock(
                 file.name,
-                validation?.message || "Tidak valid",
+                formatValidationMessage("invalid", score, validation?.message),
                 score,
-                validation?.extracted_name || "Tidak terdeteksi"
+                formatDocumentName(validation?.extracted_name)
               )
             );
             continue;
           }
 
           acceptedResults.push(result);
+          acceptedDocumentNames.push(formatDocumentName(validation?.extracted_name));
           savedCount += 1;
         } catch (error) {
           processingFailedCount += 1;
@@ -226,7 +269,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
         const lines: string[] = [`${savedCount + savedWarningCount} file disimpan ke kategori ${uploadCategory}.`];
 
         if (savedCount > 0) {
-          lines.push(`- Valid: ${savedCount} (skor > 70%).`);
+          lines.push(...acceptedDocumentNames.map((documentName) => `- Valid pada dokumen ${documentName}`));
         }
         if (savedWarningCount > 0) {
           lines.push(`- Meragukan disimpan: ${savedWarningCount} (skor 50-70%).`);
@@ -241,28 +284,25 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           );
         }
         if (warningCandidates.length > 0 && !includeWarningList) {
-          lines.push(`- Meragukan tidak disimpan: ${warningCandidates.length} (skor 50-70%).`);
+          lines.push(`- Dokumen meragukan tidak disimpan: ${warningCandidates.length}.`);
         }
         if (invalidCount > 0) {
-          lines.push("", `Ditolak (${invalidCount}) - skor < 50% / nama tidak terbaca:`, ...invalidDetails);
+          lines.push("", `Dokumen ditolak (${invalidCount}):`, ...invalidDetails);
         }
         if (oversizedDetails.length > 0) {
-          lines.push("", `Ditolak ukuran (${oversizedDetails.length}):`, ...oversizedDetails);
+          lines.push("", `Dokumen ditolak ukuran (${oversizedDetails.length}):`, ...oversizedDetails);
         }
         if (processingFailedCount > 0) {
-          lines.push("", `Gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
+          lines.push("", `Dokumen gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
         }
         return lines.join("\n");
       };
 
       if (warningCandidates.length > 0) {
         const warningMessageLines = [
-          `${warningCandidates.length} file perlu konfirmasi (skor 50-70%).`,
-          "Simpan file berikut?",
+          buildDetailLines(0, true),
           "",
-          ...warningCandidates.map((item) => {
-            return formatValidationBlock(item.fileName, item.message, item.score, item.extractedName);
-          }),
+          "Simpan dokumen meragukan di atas?",
         ];
 
         showConfirm(
@@ -292,16 +332,37 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
   };
 
   const addManual = () => {
-    if (!manualForm.nama) return showAlert("Perhatian", "Isi nama sertifikat terlebih dahulu!");
+    const nama = manualForm.nama.trim();
+    const judulKompetisi = manualForm.judulKompetisi.trim();
+    const penerbit = manualForm.penerbit.trim();
+    const tahun = manualForm.tahun.trim();
+    const masaBerlaku = manualForm.masaBerlaku.trim();
+
+    if (manualForm.kategori === "Keahlian" && (!nama || !penerbit || !tahun)) {
+      return showAlert("Perhatian", "Judul Sertifikat Keahlian, Penerbit, dan Tahun Terbit wajib diisi sebelum disimpan.");
+    }
+
+    if (!isFourDigitYear(tahun)) {
+      return showAlert("Perhatian", "Tahun Terbit harus berupa angka 4 digit.");
+    }
+
+    if (masaBerlaku && !isFourDigitYear(masaBerlaku)) {
+      return showAlert("Perhatian", "Tahun Kadaluarsa harus berupa angka 4 digit.");
+    }
+
+    if (manualForm.kategori === "Kompetisi" && (!nama || !judulKompetisi || !penerbit || !tahun)) {
+      return showAlert("Perhatian", "Isi Judul Penghargaan, Kompetisi, Penerbit, dan Tahun terlebih dahulu!");
+    }
 
     setCvData((prev) => {
       const newData = { ...prev };
 
       if (manualForm.kategori === "Kompetisi") {
         const awardData = {
-          Nama_Award: manualForm.nama,
-          Pemberi: manualForm.penerbit,
-          Tahun: manualForm.tahun,
+          Nama_Award: nama,
+          Judul_Kompetisi: judulKompetisi,
+          Pemberi: penerbit,
+          Tahun: tahun,
         };
 
         if (editingState?.type === "Kompetisi") {
@@ -311,10 +372,10 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
         }
       } else {
         const certData = {
-          Nama: manualForm.nama,
-          Penerbit: manualForm.penerbit,
-          Tahun: manualForm.tahun,
-          Masa_Berlaku: manualForm.masaBerlaku,
+          Nama: nama,
+          Penerbit: penerbit,
+          Tahun: Number(tahun),
+          Masa_Berlaku: masaBerlaku ? Number(masaBerlaku) : "",
         };
 
         if (editingState?.type === "Keahlian") {
@@ -328,7 +389,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     });
 
     setEditingState(null);
-    setManualForm({ kategori: "Keahlian", nama: "", penerbit: "", tahun: "", masaBerlaku: "" });
+    setManualForm({ kategori: "Keahlian", nama: "", judulKompetisi: "", penerbit: "", tahun: "", masaBerlaku: "" });
   };
 
   const handleEditCert = (idx: number) => {
@@ -336,9 +397,10 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     setManualForm({
       kategori: "Keahlian",
       nama: cert.Nama || "",
+      judulKompetisi: "",
       penerbit: cert.Penerbit || "",
-      tahun: cert.Tahun || "",
-      masaBerlaku: cert.Masa_Berlaku || "",
+      tahun: String(cert.Tahun || ""),
+      masaBerlaku: String(cert.Masa_Berlaku || ""),
     });
     setEditingState({ type: "Keahlian", index: idx });
     setActiveTab("manual");
@@ -349,6 +411,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     setManualForm({
       kategori: "Kompetisi",
       nama: award.Nama_Award || "",
+      judulKompetisi: award.Judul_Kompetisi || "",
       penerbit: award.Pemberi || "",
       tahun: award.Tahun || "",
       masaBerlaku: "",
@@ -370,9 +433,8 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
   };
 
   return (
-    <div className="bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-8 rounded-2xl shadow-xl text-[var(--foreground)] animate-fade-in-up relative">
-      <h2 className="text-2xl font-bold mb-6 border-b pb-2">3. Sertifikat & Prestasi</h2>
-      <div className="flex gap-2 mb-6 border-b">
+    <div>
+      <div className="flex gap-2 mt-2 mb-6 border-b">
         {["upload", "manual"].map((tab) => (
           <button
             key={tab}
@@ -434,18 +496,26 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
             <div className="flex flex-col items-center">
-              <FileUploadOutline className="mb-3 h-16 w-16 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
-              {loading ? (
-                <p className="text-[var(--color-primary)] font-bold animate-pulse">Sedang membaca & memvalidasi...</p>
-              ) : (
-                <>
-                  <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Klik atau geser file ke sini</p>
-                  <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG, JPEG (Max 5MB per file)</p>
-                  <p className="text-xs font-semibold text-[var(--color-primary)] mt-2 bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] px-2 py-1 rounded">
-                    Masuk bagian {uploadCategory === "Keahlian" ? "Sertifikat Keahlian" : "Penghargaan"}
-                  </p>
-                </>
-              )}
+                {loading ? (
+                  <div className="flex flex-col items-center">
+                    <LoadingTwotoneLoop className="mb-3 h-10 w-10 text-[var(--color-primary)] animate-spin"/>
+                    <p className="font-bold text-[var(--color-primary)] animate-pulse">
+                      Sedang membaca & memvalidasi...
+                    </p>
+                    <p className="mt-1 text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] animate-pulse">
+                      Mohon tunggu sebentar
+                    </p>
+                  </div>                    
+                ) : (
+                    <>
+                      <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
+                      <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Klik atau geser file Ijazah ke sini</p>
+                      <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG (Max 5MB per file)</p>
+                      <p className="text-xs font-semibold text-[var(--color-primary)] mt-2 bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] px-2 py-1 rounded">
+                        Masuk bagian {uploadCategory === "Keahlian" ? "Sertifikat Keahlian" : "Penghargaan"}
+                      </p>
+                    </>
+                )}
             </div>
           </div>
         </div>
@@ -455,53 +525,82 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             <label className="block text-sm font-bold mb-1">Kategori</label>
             <select
               value={manualForm.kategori || "Keahlian"}
-              onChange={(e) => setManualForm({ ...manualForm, kategori: e.target.value })}
+              onChange={(e) => setManualForm({ ...manualForm, kategori: e.target.value, judulKompetisi: "" })}
               className="w-full p-3 border rounded-lg bg-[color-mix(in_oklab,var(--color-surface)_96%,white)]"
             >
               <option value="Keahlian">Sertifikat Keahlian / Kompetensi</option>
-              <option value="Kompetisi">Juara Kompetisi / Penghargaan</option>
+              <option value="Kompetisi">Sertifikat Penghargaan / Kompetisi</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-bold mb-1">Nama Sertifikat <span className="text-red-700">*</span></label>
+            <label className="block text-sm font-bold mb-1">
+              {manualForm.kategori === "Keahlian" ? "Judul Sertifikat Keahlian" : "Judul Penghargaan"} <span className="text-red-700">*</span>
+            </label>
             <input
-              placeholder="Nama Sertifikat / Lomba"
+              placeholder={manualForm.kategori === "Keahlian" ? "Data Science, Dll" : "Juara 1, Best Capstone, Dll"}
               className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
               value={manualForm.nama || ""}
               onChange={(e) => setManualForm({ ...manualForm, nama: e.target.value })}
             />
           </div>
+          {manualForm.kategori === "Kompetisi" && (
+            <div>
+              <label className="block text-sm font-bold mb-1">
+                Judul Kompetisi <span className="text-red-700">*</span>
+              </label>
+              <input
+                placeholder="Data Science Olympiad, Dll"
+                className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+                value={manualForm.judulKompetisi || ""}
+                onChange={(e) => setManualForm({ ...manualForm, judulKompetisi: e.target.value })}
+              />
+            </div>
+          )}
           <div>
-            <label className="block text-sm font-bold mb-1">Penerbit / Penyelenggara</label>
+            <label className="block text-sm font-bold mb-1">
+              {manualForm.kategori === "Keahlian" ? "Penerbit" : "Penyelenggara"}
+              {manualForm.kategori === "Keahlian"  && <span className="text-red-700"> *</span>}
+              {manualForm.kategori === "Kompetisi"  && <span className="text-red-700"> *</span>}
+            </label>
             <input
-              placeholder="Penerbit / Penyelenggara"
+              placeholder={manualForm.kategori === "Keahlian" ? "Digicamp, Dll" : "KMIPN, Himpunan Mahasiswa, Dll"}
               className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
               value={manualForm.penerbit || ""}
               onChange={(e) => setManualForm({ ...manualForm, penerbit: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-bold mb-1">Tahun</label>
+            <label className="block text-sm font-bold mb-1">
+              Tahun Terbit <span className="text-red-700">*</span>
+            </label>
             <input
-              placeholder="Tahun"
+              type="number"
+              inputMode="numeric"
+              min="1000"
+              max="9999"
+              placeholder="2025"
               className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
               value={manualForm.tahun || ""}
-              onChange={(e) => setManualForm({ ...manualForm, tahun: e.target.value })}
+              onChange={(e) => setManualForm({ ...manualForm, tahun: normalizeYearInput(e.target.value) })}
             />
           </div>
           {manualForm.kategori === "Keahlian" && (
             <div>
               <label className="block text-sm font-bold mb-1">Tahun Kadaluarsa</label>
               <input
-                placeholder="Contoh: 2022"
+                type="number"
+                inputMode="numeric"
+                min="1000"
+                max="9999"
+                placeholder="2025 (opsional)"
                 className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
                 value={manualForm.masaBerlaku || ""}
-                onChange={(e) => setManualForm({ ...manualForm, masaBerlaku: e.target.value })}
+                onChange={(e) => setManualForm({ ...manualForm, masaBerlaku: normalizeYearInput(e.target.value) })}
               />
             </div>
           )}
           {editingState !== null && (
-            <p className="text-sm text-[color-mix(in_oklab,var(--color-accent)_68%,black)] font-semibold md:col-span-2">
+            <p className="block text-sm font-bold mb-1">
               Sedang mengedit {editingState.type === "Keahlian" ? "sertifikat keahlian" : "penghargaan / lomba"}
             </p>
           )}
@@ -556,7 +655,10 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               <li key={i} className="bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] p-3 rounded border flex justify-between items-start text-sm shadow-sm">
                 <div>
                   <p className="font-bold text-[var(--foreground)]">{award.Nama_Award}</p>
-                  <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">{award.Pemberi} {award.Tahun && `(${award.Tahun})`}</p>
+                  <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">
+                    {award.Judul_Kompetisi && `${award.Judul_Kompetisi} - `}
+                    {award.Pemberi} {award.Tahun && `(${award.Tahun})`}
+                  </p>
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => handleEditAward(i)} className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" aria-label="Edit penghargaan"><EditIcon className="h-5 w-5" /></button>
