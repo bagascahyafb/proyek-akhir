@@ -79,7 +79,7 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel,
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
-      <div className="w-full max-w-sm rounded-2xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)] bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-6 shadow-[0_18px_40px_rgba(2,6,23,0.28)] animate-fade-in-up">
+      <div className="max-h-[min(90vh,620px)] w-full max-w-sm overflow-y-auto rounded-2xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)] bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-6 shadow-[0_18px_40px_rgba(2,6,23,0.28)] animate-fade-in-up">
         <div className={`mb-4 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-wide ${modalTone.badgeClass}`}>
           {modalTone.badge}
         </div>
@@ -105,7 +105,7 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel,
         <p className="text-[color-mix(in_oklab,var(--foreground)_78%,white)] mb-6 whitespace-pre-wrap text-sm leading-relaxed">
           {message}
         </p>
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
           {type === "confirm" && (
             <button 
               type="button"

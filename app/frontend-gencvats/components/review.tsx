@@ -118,7 +118,7 @@ export default function Step5Review({
       <div className="space-y-8">
         <div className="space-y-6">
           {/* LANGUAGE */}
-          <div className="bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
+          <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
             <label className="block font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-3 text-lg">
               Pilih Bahasa CV
             </label>
@@ -133,7 +133,7 @@ export default function Step5Review({
           </div>
 
           {/* SUMMARY */}
-          <div className="bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
+          <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
             <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-3 text-lg">
               Pembuatan Summary
             </h3>
@@ -159,7 +159,7 @@ export default function Step5Review({
           </div>
 
           {/* CONTENT SELECTION */}
-          <div className="bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border h-full">
+          <div className="builder-list-panel bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border h-full">
             <div>
               <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-2">
                 Preview Summary (About Me)
@@ -169,7 +169,7 @@ export default function Step5Review({
               </p>
             </div>
 
-            <div className="mt-6 max-h-[400px] overflow-y-auto pr-2 space-y-4">
+            <div className="builder-scroll-panel mt-6 space-y-4">
               {[
                 {
                   title: "Pendidikan",
@@ -269,7 +269,7 @@ export default function Step5Review({
         </div>
 
         {/* ACTION BUTTONS */}
-        <div className="flex justify-between mt-8 pt-6">
+        <div className="builder-form-actions mt-8 pt-6">
           <button
             type="button"
             onClick={prevStep}

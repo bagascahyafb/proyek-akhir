@@ -10,17 +10,26 @@ type ThemeToggleProps = {
   variant?: "fixed" | "inline";
 };
 
+const getInitialTheme = (): "light" | "dark" => {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  const stored = localStorage.getItem(STORAGE_KEY);
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return stored === "dark" || (stored === null && prefersDark) ? "dark" : "light";
+};
+
 export default function ThemeToggle({ variant = "fixed" }: ThemeToggleProps) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const pathname = usePathname();
 
   useEffect(() => {
-    const root = document.documentElement;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = stored === "dark" || (stored === null && prefersDark) ? "dark" : "light";
-    root.classList.toggle("dark", initialTheme === "dark");
-    setTheme(initialTheme);
+    queueMicrotask(() => {
+      const initialTheme = getInitialTheme();
+      document.documentElement.classList.toggle("dark", initialTheme === "dark");
+      setTheme(initialTheme);
+    });
   }, []);
 
   const toggleTheme = () => {

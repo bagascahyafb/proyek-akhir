@@ -1,9 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CVDataState, SelectedCVContent } from "@/types";
 import Image from "next/image"; 
-import { useMemo } from "react";
 
 // Import Components
 import Step1Personal from "@/components/personal";
@@ -33,24 +32,6 @@ const createSelectedContent = (cvData: CVDataState): SelectedCVContent => ({
   certifications: cvData.Certifications.map(() => true),
   awards: cvData.Awards.map(() => true)
 });
-
-type CountryCode = { label: string; value: string };
-
-const COUNTRY_CODES: CountryCode[] = [
-  { label: "Indonesia (+62)", value: "+62" },
-  { label: "United States (+1)", value: "+1" },
-  { label: "Singapore (+65)", value: "+65" },
-  { label: "Malaysia (+60)", value: "+60" },
-  { label: "Japan (+81)", value: "+81" },
-  { label: "South Korea (+82)", value: "+82" },
-  { label: "India (+91)", value: "+91" },
-  { label: "Australia (+61)", value: "+61" },
-  { label: "United Kingdom (+44)", value: "+44" },
-  { label: "Germany (+49)", value: "+49" },
-  { label: "Netherlands (+31)", value: "+31" },
-  { label: "France (+33)", value: "+33" },
-  { label: "Canada (+1)", value: "+1" },
-];
 
 const inferDefaultCode = () => {
   if (typeof window === "undefined") return "+62";
@@ -109,16 +90,18 @@ export default function BuilderPage() {
   }, [currentStep]);
 
   useEffect(() => {
-    setSelectedContent(prev => ({
-      ...prev,
-      education: cvData.Education.map((_, index) => prev.education[index] ?? true),
-      experience: cvData.Experience.map((_, index) => prev.experience[index] ?? true),
-      projects: cvData.Projects.map((_, index) => prev.projects[index] ?? true),
-      hardSkills: cvData.Skills_Hard.map((_, index) => prev.hardSkills[index] ?? true),
-      softSkills: cvData.Skills_Soft.map((_, index) => prev.softSkills[index] ?? true),
-      certifications: cvData.Certifications.map((_, index) => prev.certifications[index] ?? true),
-      awards: cvData.Awards.map((_, index) => prev.awards[index] ?? true)
-    }));
+    queueMicrotask(() => {
+      setSelectedContent(prev => ({
+        ...prev,
+        education: cvData.Education.map((_, index) => prev.education[index] ?? true),
+        experience: cvData.Experience.map((_, index) => prev.experience[index] ?? true),
+        projects: cvData.Projects.map((_, index) => prev.projects[index] ?? true),
+        hardSkills: cvData.Skills_Hard.map((_, index) => prev.hardSkills[index] ?? true),
+        softSkills: cvData.Skills_Soft.map((_, index) => prev.softSkills[index] ?? true),
+        certifications: cvData.Certifications.map((_, index) => prev.certifications[index] ?? true),
+        awards: cvData.Awards.map((_, index) => prev.awards[index] ?? true)
+      }));
+    });
   }, [
     cvData.Education,
     cvData.Experience,
@@ -134,7 +117,6 @@ export default function BuilderPage() {
     () => parsePhoneValue(cvData.Personal_Info.HP, defaultCode),
     [cvData.Personal_Info.HP, defaultCode],
   );
-  const phoneCode = parsedPhone.code;
   const phoneNumber = parsedPhone.local;
 
   const updateInfo = (field: keyof typeof cvData.Personal_Info, value: string) => {
@@ -144,29 +126,10 @@ export default function BuilderPage() {
     }));
   };
 
-  const updatePhone = (
-    nextCode: string,
-    nextLocal: string
-  ) => {
-    const cleanLocal =
-      nextLocal.replace(/[^\d]/g, "");
-  
-    const combined =
-      `${nextCode} ${cleanLocal}`.trim();
-  
-    updateInfo("HP", combined);
-  };
-
   const canNavigateToStep = (targetStep: number) => {
     if (targetStep <= currentStep) {
       return true;
     }
-  
-    const hasName =
-      cvData.Personal_Info?.Nama?.trim();
-  
-    const hasEmail =
-      cvData.Personal_Info?.Email?.trim();
   
     const email = cvData.Personal_Info.Email.trim();
     const linkedInRaw = cvData.Personal_Info.LinkedIn.trim();

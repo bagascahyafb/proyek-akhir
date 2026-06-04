@@ -77,7 +77,7 @@
 html {
   scroll-behavior: smooth;
 
-  font-size: clamp(14px, 0.82vw, 16px);
+  font-size: 16px;
 
   text-rendering: optimizeLegibility;
 
@@ -196,7 +196,7 @@ select option {
 .landing-section,
 .landing-footer-top,
 .builder-topbar-inner {
-  width: min(100%, 1600px);
+  width: min(100%, 1440px);
 
   margin-inline: auto;
 }
@@ -275,8 +275,8 @@ select option {
   gap: 1rem;
 
   padding:
-    1rem
-    clamp(1rem, 2vw, 2rem);
+    clamp(0.85rem, 1.4vw, 1rem)
+    clamp(1rem, 2vw, 1.5rem);
 }
 
 .landing-brand {
@@ -286,7 +286,7 @@ select option {
   gap: 0.7rem;
 
   font-size:
-    clamp(1.2rem, 2vw, 1.4rem);
+    clamp(1.1rem, 1.4vw, 1.35rem);
 
   font-weight: 800;
 
@@ -438,12 +438,12 @@ select option {
   align-items: center;
 
   gap:
-    clamp(2rem, 5vw, 5rem);
+    clamp(2rem, 4vw, 4rem);
 
   padding:
-    8rem
-    clamp(1rem, 3vw, 2rem)
-    5rem;
+    clamp(6.75rem, 8vw, 7.75rem)
+    clamp(1rem, 2vw, 1.5rem)
+    clamp(3.5rem, 5vw, 4.5rem);
 }
 
 .landing-hero-content {
@@ -469,20 +469,20 @@ select option {
   font-size: 0.8rem;
   font-weight: 700;
 
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
 .landing-hero h1 {
   margin-bottom: 1.3rem;
 
   font-size:
-    clamp(2.8rem, 5vw, 5rem);
+    clamp(2.6rem, 4.2vw, 4.25rem);
 
   font-weight: 800;
 
   line-height: 1.02;
 
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
 
   background:
     linear-gradient(
@@ -627,6 +627,19 @@ select option {
   object-fit: cover;
 }
 
+.landing-preview-card {
+  aspect-ratio: 4 / 5;
+}
+
+.landing-preview-image {
+  height: 100%;
+}
+
+.landing-previewcv-image {
+  width: min(100%, 520px);
+  height: auto;
+}
+
 /* ========================================
    SECTION
 ======================================== */
@@ -635,8 +648,8 @@ select option {
   position: relative;
 
   padding:
-    clamp(4rem, 8vw, 7rem)
-    clamp(1rem, 3vw, 2rem);
+    clamp(3.25rem, 6vw, 5.5rem)
+    clamp(1rem, 2vw, 1.5rem);
 }
 
 .landing-section-soft {
@@ -663,13 +676,13 @@ select option {
   margin-bottom: 1rem;
 
   font-size:
-    clamp(2rem, 4vw, 3.2rem);
+    clamp(1.9rem, 3vw, 2.8rem);
 
   font-weight: 800;
 
   line-height: 1.08;
 
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 }
 
 .landing-section-heading p {
@@ -917,20 +930,20 @@ select option {
   font-size: 0.78rem;
   font-weight: 800;
 
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
 }
 
 .landing-about-content h2 {
   margin-bottom: 1.3rem;
 
   font-size:
-    clamp(2rem, 4vw, 3rem);
+    clamp(1.9rem, 3vw, 2.7rem);
 
   font-weight: 800;
 
   line-height: 1.08;
 
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 }
 
 .landing-about-content p {
@@ -1063,9 +1076,14 @@ select option {
 ======================================== */
 
 .builder-layout-root {
+  --builder-topbar-height: 74px;
+  --builder-sidebar-width: clamp(220px, 17vw, 250px);
+
   min-height: 100vh;
 
   overflow-x: hidden;
+
+  padding-top: var(--builder-topbar-height);
 
   background:
     color-mix(
@@ -1080,10 +1098,12 @@ select option {
 ======================================== */
 
 .builder-topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
 
-  z-index: 60;
+  z-index: 80;
 
   border-bottom:
     1px solid
@@ -1111,8 +1131,8 @@ select option {
   gap: 1rem;
 
   padding:
-    1rem
-    clamp(1rem, 2vw, 2rem);
+    clamp(0.8rem, 1.4vw, 1rem)
+    clamp(1rem, 2vw, 1.5rem);
 }
 
 .builder-topbar-left {
@@ -1129,7 +1149,7 @@ select option {
   gap: 0.8rem;
 
   font-size:
-    clamp(1.35rem, 2vw, 1.8rem);
+    clamp(1.2rem, 1.5vw, 1.5rem);
 
   font-weight: 800;
 
@@ -1232,11 +1252,11 @@ select option {
   display: grid;
 
   grid-template-columns:
-    clamp(215px, 16vw, 245px)
+    var(--builder-sidebar-width)
     minmax(0, 1fr);
 
   width: 100%;
-  max-width: 1600px;
+  max-width: 1440px;
 
   min-height:
     calc(100vh - 76px);
@@ -1249,15 +1269,24 @@ select option {
 ======================================== */
 
 .builder-sidebar {
-  position: sticky;
-  top: 76px;
+  position: fixed;
+  top: var(--builder-topbar-height);
+  left: max(0px, calc((100vw - 1440px) / 2));
+
+  width: var(--builder-sidebar-width);
+
+  z-index: 50;
+
+  align-self: start;
 
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 
   height:
-    calc(100vh - 76px);
+    calc(100vh - var(--builder-topbar-height));
+
+  overflow-y: auto;
 
   padding:
     clamp(1rem, 1.5vw, 1.5rem)
@@ -1283,7 +1312,7 @@ select option {
   margin-bottom: 0.25rem;
 
   font-size:
-    clamp(1.4rem, 2vw, 1.9rem);
+    clamp(1.25rem, 1.5vw, 1.55rem);
 
   font-weight: 800;
 
@@ -1457,7 +1486,9 @@ select option {
 ======================================== */
 
 .builder-content-area {
-  width: min(100%, 1020px);
+  grid-column: 2;
+
+  width: min(100%, 980px);
 
   margin-inline: auto;
 
@@ -1497,13 +1528,13 @@ select option {
   margin-bottom: 0.8rem;
 
   font-size:
-    clamp(2rem, 3vw, 3rem);
+    clamp(1.9rem, 2.4vw, 2.55rem);
 
   font-weight: 800;
 
   line-height: 1.08;
 
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 }
 
 .builder-content-header p {
@@ -1525,6 +1556,8 @@ select option {
 ======================================== */
 
 .builder-form-card {
+  position: relative;
+
   border:
     1px solid
     color-mix(
@@ -1562,8 +1595,75 @@ select option {
   font-size: 0.95rem;
 }
 
-.builder-form-card textarea {
+/* .builder-form-card textarea {
   min-height: 120px;
+} */
+
+.builder-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-soft) 65%, white);
+}
+
+.builder-tabs button {
+  flex: 0 1 auto;
+  min-width: fit-content;
+}
+
+.builder-inner-panel,
+.builder-list-panel {
+  border-color: color-mix(in oklab, var(--color-soft) 65%, white);
+}
+
+.builder-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.builder-list-item > :first-child {
+  min-width: 0;
+}
+
+.builder-list-item p,
+.builder-scroll-panel p {
+  overflow-wrap: anywhere;
+}
+
+.builder-icon-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.builder-form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.builder-form-actions.justify-end {
+  justify-content: flex-end;
+}
+
+.builder-form-actions button {
+  min-height: 44px;
+}
+
+.builder-scroll-panel {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.builder-document-preview {
+  max-height: min(68vh, 640px);
+  overflow: auto;
 }
 
 /* ========================================
@@ -1629,11 +1729,11 @@ select option {
   .landing-section,
   .landing-footer-top,
   .builder-topbar-inner {
-    width: min(100%, 1700px);
+    width: min(100%, 1440px);
   }
 
   .builder-content-area {
-    width: min(100%, 1150px);
+    width: min(100%, 1040px);
   }
 }
 
@@ -1651,9 +1751,7 @@ select option {
   }
 
   .builder-main-layout {
-    grid-template-columns:
-      220px
-      minmax(0, 1fr);
+    --builder-sidebar-width: 220px;
   }
 }
 
@@ -1664,14 +1762,28 @@ select option {
 @media (max-width: 1024px) {
   .builder-main-layout {
     grid-template-columns: 1fr;
+
+    padding-top: 0;
+  }
+
+  .builder-content-area {
+    grid-column: 1;
   }
 
   .builder-sidebar {
-    position: relative;
+    position: sticky;
 
-    top: 0;
+    top: var(--builder-topbar-height);
+
+    width: 100%;
 
     height: auto;
+
+    max-height:
+      calc(100vh - var(--builder-topbar-height));
+
+    box-shadow:
+      0 14px 30px rgba(15, 23, 42, 0.08);
 
     border-right: none;
 
@@ -1725,7 +1837,7 @@ select option {
 
 @media (max-width: 768px) {
   html {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   /* =========================
@@ -1733,19 +1845,15 @@ select option {
   ========================= */
 
   .builder-topbar-inner {
-    flex-direction: column;
+    align-items: center;
 
-    align-items: flex-start;
-
-    gap: 1.25rem;
+    gap: 0.8rem;
   }
 
   .builder-topbar-left {
-    flex-direction: column;
+    align-items: center;
 
-    align-items: flex-start;
-
-    gap: 1.25rem;
+    gap: 0.8rem;
   }
 
   .builder-nav-links {
@@ -1781,9 +1889,9 @@ select option {
 
   .landing-hero {
     padding:
-      7rem
+      6.75rem
       1rem
-      4rem;
+      3.5rem;
   }
 
   .landing-hero h1 {
@@ -1807,6 +1915,9 @@ select option {
   }
 
   .builder-steps-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
     gap: 0.6rem;
   }
 
@@ -1833,6 +1944,29 @@ select option {
     flex-direction: column;
   }
 
+  .builder-tabs button {
+    flex: 1 1 calc(50% - 0.5rem);
+    padding-inline: 0.75rem;
+  }
+
+  .builder-list-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .builder-icon-actions {
+    align-self: flex-end;
+  }
+
+  .builder-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .builder-form-actions button {
+    justify-content: center;
+    width: 100%;
+  }
+
   /* =========================
      FOOTER
   ========================= */
@@ -1850,7 +1984,7 @@ select option {
 
 @media (max-width: 480px) {
   html {
-    font-size: 13.5px;
+    font-size: 14.5px;
   }
 
   .landing-hero {
@@ -1867,6 +2001,19 @@ select option {
 
   .builder-form-card {
     border-radius: 1rem;
+    padding: 0.9rem;
+  }
+
+  .builder-steps-list {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-tabs button {
+    flex-basis: 100%;
+  }
+
+  .builder-document-preview {
+    padding: 1rem;
   }
 
   .landing-feature-card,

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal";
 import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, TrashIcon } from "./icons";
+import { buildDuplicateKey, formatDuplicateMessage, isDuplicateItem, uniqueTextList } from "./duplicate-data";
 
 const inputClass =
   "w-full border border-[color-mix(in_oklab,var(--color-soft)_75%,white)] bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] p-3 rounded-lg text-[var(--foreground)] placeholder:text-[color-mix(in_oklab,var(--foreground)_45%,grey)] focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition"
@@ -160,11 +161,23 @@ function ModernDateField({ value, onChange, min, disabled = false, placeholder, 
 
 const normalizeUrl = (raw: string) => {
   const trimmed = raw.trim();
+
   if (!trimmed) {
     throw new Error("URL kosong");
   }
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  return new URL(withProtocol);
+
+  const withProtocol =
+    /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+
+  const parsed = new URL(withProtocol);
+
+  if (!parsed.hostname.includes(".")) {
+    throw new Error("Domain tidak valid");
+  }
+
+  return parsed;
 };
 
 export default function Step3Experience({ cvData, setCvData, nextStep, prevStep }: StepProps) {
@@ -195,6 +208,21 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
   const { modalProps, showAlert, showConfirm } = useModal();
   const [hardSkillsText, setHardSkillsText] = useState(cvData.Skills_Hard.join(", "));
   const [softSkillsText, setSoftSkillsText] = useState(cvData.Skills_Soft.join(", "));
+
+  const getExperienceDuplicateKey = (entry: {
+    Posisi: string;
+    Perusahaan: string;
+    Durasi: string;
+    Tipe: string;
+    Jenis: string;
+  }) => buildDuplicateKey([entry.Posisi, entry.Perusahaan, entry.Durasi, entry.Tipe, entry.Jenis]);
+
+  const getProjectDuplicateKey = (entry: {
+    Nama_Proyek: string;
+    Role: string;
+    Tech_Stack: string;
+    Duration: string;
+  }) => buildDuplicateKey([entry.Nama_Proyek, entry.Role, entry.Tech_Stack, entry.Duration]);
 
   // ================= AUTO RESIZE =================
   const expDescRef = useRef<HTMLTextAreaElement | null>(null);
@@ -279,6 +307,14 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       Jenis: expForm.workMode,
       Deskripsi: expForm.desc
     };
+
+    if (isDuplicateItem(cvData.Experience, newData, getExperienceDuplicateKey, editingExpIndex)) {
+      showAlert(
+        "Data duplikat",
+        formatDuplicateMessage("Pengalaman", [`${newData.Posisi} - ${newData.Perusahaan} (${formatDurationLabel(newData.Durasi, cvData.Language)})`])
+      );
+      return;
+    }
 
     const nextExperience =
       editingExpIndex !== null
@@ -372,7 +408,23 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
         return showAlert("GitHub/Portofolio", "Format link GitHub/Portofolio tidak valid.");
       }
 
-      updateInfo("Portfolio", portfolioUrl.toString());
+      setProjForm(prev => ({
+        ...prev,
+        link: portfolioUrl.toString()
+      }));
+    }
+
+    let normalizedLink = projForm.link;
+
+    if (portfolioRaw) {
+      try {
+        normalizedLink = normalizeUrl(portfolioRaw).toString();
+      } catch {
+        return showAlert(
+          "GitHub/Portofolio",
+          "Format link GitHub/Portofolio tidak valid."
+        );
+      }
     }
 
     const newData = {
@@ -380,9 +432,17 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       Role: projForm.role,
       Tech_Stack: projForm.stack,
       Duration: buildDuration(projForm.startDate, projForm.endDate, projForm.isCurrent),
-      link: projForm.link || "",
+      link: normalizedLink || "",
       Deskripsi: projForm.desc
     };
+
+    if (isDuplicateItem(cvData.Projects, newData, getProjectDuplicateKey, editingProjIndex)) {
+      showAlert(
+        "Data duplikat",
+        formatDuplicateMessage("Proyek", [`${newData.Nama_Proyek}${newData.Role ? ` - ${newData.Role}` : ""}`])
+      );
+      return;
+    }
 
     const nextProjects =
       editingProjIndex !== null
@@ -442,8 +502,10 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
 
   // ================= SKILLS =================
   const handleSkillsBlur = (type: "hard" | "soft") => {
-    const clean = (type === "hard" ? hardSkillsText : softSkillsText)
+    const parsed = (type === "hard" ? hardSkillsText : softSkillsText)
       .split(",").map(s => s.trim()).filter(Boolean);
+    const { items: clean, duplicates } = uniqueTextList(parsed);
+    const label = type === "hard" ? "Hard skill" : "Soft skill";
 
     if (type === "hard") {
       setCvData(prev => ({ ...prev, Skills_Hard: clean }));
@@ -452,13 +514,17 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
         setCvData(prev => ({ ...prev, Skills_Soft: clean }));
         setSoftSkillsText(clean.join(", "));
     }
+
+    if (duplicates.length > 0) {
+      showAlert("Data duplikat", formatDuplicateMessage(label, duplicates));
+    }
   };
 
 
   return (
     <div>
       {/* Tabs */}
-      <div className="flex gap-2 mt-2 mb-6 border-b">
+      <div className="builder-tabs">
         {tabs.map(tab => (
           <button
             key={tab}
@@ -478,7 +544,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       {activeTab === "exp" && (
         <>
           {/* FORM */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
+          <div className="builder-inner-panel grid grid-cols-1 md:grid-cols-2 gap-5 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
 
             <div>
               <label className="block text-sm font-bold mb-1">
@@ -547,7 +613,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 value={expForm.type}
                 onChange={e => setExpForm({ ...expForm, type: e.target.value })}
               >
-                {/* <option value="">Pilih tipe pekerjaan</option> */}
+                <option value="">Pilih tipe pekerjaan</option>
                 <option value="Full-time">Full-time</option>
                 <option value="Part-time">Part-time</option>
                 <option value="Internship">Internship</option>
@@ -567,7 +633,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 value={expForm.workMode}
                 onChange={e => setExpForm({ ...expForm, workMode: e.target.value })}
               >
-                {/* <option value="">Pilih jenis pekerjaan</option> */}
+                <option value="">Pilih jenis pekerjaan</option>
                 <option value="On-site">On-site</option>
                 <option value="Hybrid">Hybrid</option>
                 <option value="Remote">Remote</option>
@@ -612,7 +678,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
           </div>
 
           {/* LIST */}
-          <div className="mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
+          <div className="builder-list-panel mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
             <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-4 flex items-center gap-2">
               Daftar Pengalaman
               <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full">
@@ -628,7 +694,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               {cvData.Experience.map((e, i) => (
                 <div
                   key={i}
-                  className="bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border p-4 rounded-lg flex justify-between items-center shadow-sm hover:shadow-md transition"
+                  className="builder-list-item bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border p-4 rounded-lg shadow-sm hover:shadow-md transition"
                 >
                   <div>
                     <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_92%,black)]">{e.Posisi}</p>
@@ -640,7 +706,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="builder-icon-actions">
                     <button
                       onClick={() => handleEditExp(i)}
                       aria-label="Edit pengalaman"
@@ -668,7 +734,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       {activeTab==="proj" && (
       <>
         {/* FORM */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
+        <div className="builder-inner-panel grid grid-cols-1 md:grid-cols-2 gap-5 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
           {/* Nama Proyek */}
           <div>
             <label className="block text-sm font-bold mb-1">
@@ -746,7 +812,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             <input
               className={inputClass}
               placeholder="https://github.com/username atau https://portfolio.com"
-              value={projForm.link}
+              value={projForm.link || ""}
               onChange={e => {setProjForm({ ...projForm, link: e.target.value });
               }}
             />
@@ -790,7 +856,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
         </div>
 
         {/* LIST */}
-        <div className="mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
+        <div className="builder-list-panel mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
           <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-4 flex items-center gap-2">
             Daftar Proyek
             <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full">
@@ -806,7 +872,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             {cvData.Projects.map((e, i) => (
               <div
                 key={i}
-                className="bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border p-4 rounded-lg flex justify-between items-center shadow-sm hover:shadow-md transition"
+                className="builder-list-item bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border p-4 rounded-lg shadow-sm hover:shadow-md transition"
               >
                 <div>
                   <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_92%,black)]">
@@ -820,7 +886,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                   </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="builder-icon-actions">
                   <button
                     onClick={() => handleEditProj(i)}
                     aria-label="Edit proyek"
@@ -847,7 +913,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       {/* ================= SKILLS ================= */}
       {activeTab === "skill" && (
       <>
-        <div className="bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border space-y-4">
+        <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border space-y-4">
           <div>
             <label className="block text-sm font-bold mb-1">
               Hard Skills
@@ -877,7 +943,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       </>
       )}
 
-      <div className="flex justify-between mt-6">
+      <div className="builder-form-actions mt-6">
         <button 
         onClick={prevStep}
         className="cursor-pointer px-6 py-2 bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] rounded-lg font-bold hover:bg-[color-mix(in_oklab,var(--color-soft)_75%,white)] flex items-center gap-2"

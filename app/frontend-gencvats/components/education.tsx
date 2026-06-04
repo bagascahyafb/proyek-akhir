@@ -3,18 +3,26 @@ import axios from "axios";
 import { StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal";
 import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon, LoadingTwotoneLoop } from "./icons";
+import { buildDuplicateKey, filterUniqueNewItems, formatDuplicateMessage, isDuplicateItem } from "./duplicate-data";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, prevStep }: StepProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "manual">("upload");
   const tabs: Array<"upload" | "manual"> = ["upload", "manual"];
-  const [manual, setManual] = useState({uni: "", jur: "", gel: "", thn: "", ipk: "", matkul: ""});
+  const [manual, setManual] = useState({uni: "", jur: "", gel: "", thn: "", ipk: "", matkul: "", ket: ""});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { modalProps, showAlert, showConfirm, showSuccess } = useModal();
+
+  const getEducationDuplicateKey = (entry: {
+    Institusi: string;
+    Jurusan: string;
+    Gelar: string;
+    Tahun_Lulus: string;
+  }) => buildDuplicateKey([entry.Institusi, entry.Jurusan, entry.Gelar, entry.Tahun_Lulus]);
 
   // ================= UPLOAD =================
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,6 +33,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       Tahun_Lulus: string;
       IPK: string;
       Matkul: string;
+      keterangan: string;
     };
 
     type WarningCandidate = {
@@ -62,6 +71,8 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
     const acceptedEntries: EducationEntry[] = [];
     const acceptedDocumentNames: string[] = [];
     const warningCandidates: WarningCandidate[] = [];
+    let duplicateCount = 0;
+    const duplicateDetails: string[] = [];
 
     const formatDocumentName = (value?: string) => {
       const cleanValue = value?.trim();
@@ -85,10 +96,8 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
     const formatValidationBlock = (
       fileName: string,
       statusMessage: string,
-      score: number | null,
       extractedName: string
     ) => {
-      const scoreText = score !== null ? `${score}%` : "Tidak tersedia";
       return [
         `${fileName}`,
         `Alasan Ditolak : ${statusMessage}`,
@@ -118,6 +127,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             Tahun_Lulus: data.Tahun_Lulus,
             IPK: data.IPK,
             Matkul: "",
+            keterangan: "",
           };
 
           if (status === "warning") {
@@ -137,7 +147,6 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               formatValidationBlock(
                 file.name,
                 formatValidationMessage("invalid", score, validation?.message),
-                score,
                 formatDocumentName(validation?.extracted_name)
               )
             );
@@ -164,10 +173,39 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      if (acceptedEntries.length > 0) {
+      const acceptedUploadRows = acceptedEntries.map((entry, index) => ({
+        entry,
+        documentName: acceptedDocumentNames[index] || "Tidak terdeteksi",
+      }));
+      const existingUploadRows = cvData.Education.map((entry) => ({
+        entry,
+        documentName: "",
+      }));
+      const uniqueAcceptedUploads = filterUniqueNewItems(
+        existingUploadRows,
+        acceptedUploadRows,
+        (item) => getEducationDuplicateKey(item.entry)
+      );
+      const uniqueAcceptedEntries = uniqueAcceptedUploads.items.map((item) => item.entry);
+      const uniqueAcceptedDocumentNames = uniqueAcceptedUploads.items.map((item) => item.documentName);
+      const warningFilterBase = [...cvData.Education, ...uniqueAcceptedEntries];
+      const uniqueWarningEntries = filterUniqueNewItems(
+        warningFilterBase,
+        warningCandidates.map((item) => item.entry),
+        getEducationDuplicateKey
+      );
+
+      savedCount = uniqueAcceptedEntries.length;
+      duplicateCount = uniqueAcceptedUploads.duplicates.length + uniqueWarningEntries.duplicates.length;
+      duplicateDetails.push(
+        ...uniqueAcceptedUploads.duplicates.map((item) => `- ${item.entry.Institusi} - ${item.entry.Jurusan} (${item.entry.Tahun_Lulus})`),
+        ...uniqueWarningEntries.duplicates.map((item) => `- ${item.Institusi} - ${item.Jurusan} (${item.Tahun_Lulus})`)
+      );
+
+      if (uniqueAcceptedEntries.length > 0) {
         setCvData((prev) => ({
           ...prev,
-          Education: [...prev.Education, ...acceptedEntries],
+          Education: [...prev.Education, ...uniqueAcceptedEntries],
         }));
       }
 
@@ -175,10 +213,10 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         const lines: string[] = [`${savedCount + savedWarningCount} file disimpan.`];
 
         if (savedCount > 0) {
-          lines.push(...acceptedDocumentNames.map((documentName) => `- Valid pada dokumen ${documentName}`));
+          lines.push(...uniqueAcceptedDocumentNames.map((documentName) => `Valid, nama pada dokumen sesuai dengan profil`));
         }
         if (savedWarningCount > 0) {
-          lines.push(`- Meragukan disimpan: ${savedWarningCount}.`);
+          lines.push(`Meragukan untuk disimpan: ${savedWarningCount}.`);
         }
         if (warningCandidates.length > 0 && includeWarningList) {
           lines.push(
@@ -186,7 +224,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             `Perlu konfirmasi (${warningCandidates.length}):`,
             ...warningCandidates.map(
               (item) => {
-                return formatValidationBlock(item.fileName, item.message, item.score, item.extractedName);
+                return formatValidationBlock(item.fileName, item.message, item.extractedName);
               }
             )
           );
@@ -198,15 +236,18 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           lines.push("", `Dokumen ditolak (${invalidCount}):`, ...invalidDetails);
         }
         if (oversizedDetails.length > 0) {
-          lines.push("", `Dokumen ditolak ukuran (${oversizedDetails.length}):`, ...oversizedDetails);
+          lines.push("", `Dokumen ditolak ukuran > 5MB (${oversizedDetails.length}):`, ...oversizedDetails);
         }
         if (processingFailedCount > 0) {
           lines.push("", `Dokumen gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
         }
+        if (duplicateCount > 0) {
+          lines.push("", `Data duplikat tidak disimpan (${duplicateCount}):`, ...duplicateDetails);
+        }
         return lines.join("\n");
       };
 
-      if (warningCandidates.length > 0) {
+      if (warningCandidates.length > 0 && uniqueWarningEntries.items.length > 0) {
         const warningMessageLines = [
           buildDetailLines(0, true),
           "",
@@ -219,9 +260,9 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           () => {
             setCvData((prev) => ({
               ...prev,
-              Education: [...prev.Education, ...warningCandidates.map((item) => item.entry)],
+              Education: [...prev.Education, ...uniqueWarningEntries.items],
             }));
-            showSuccess("Upload selesai", buildDetailLines(warningCandidates.length, true));
+            showSuccess("Upload selesai", buildDetailLines(uniqueWarningEntries.items.length, true));
           },
           () => {
             if (savedCount > 0) {
@@ -236,7 +277,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
 
       if (savedCount > 0) {
         showSuccess("Upload selesai", buildDetailLines(0, true));
-      } else if (processingFailedCount > 0 || invalidCount > 0 || oversizedDetails.length > 0) {
+      } else if (processingFailedCount > 0 || invalidCount > 0 || oversizedDetails.length > 0 || duplicateCount > 0) {
         showAlert("Upload gagal", buildDetailLines(0, true));
       }
     }
@@ -261,8 +302,16 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       Gelar: manual.gel,
       Tahun_Lulus: manual.thn,
       IPK: ipkValue,
-      Matkul: manual.matkul
+      Matkul: manual.matkul,
+      keterangan: manual.ket
     };
+
+    if (isDuplicateItem(cvData.Education, newData, getEducationDuplicateKey, editingIndex)) {
+      return showAlert(
+        "Data duplikat",
+        formatDuplicateMessage("Pendidikan", [`${newData.Institusi} - ${newData.Jurusan} (${newData.Tahun_Lulus})`])
+      );
+    }
 
     if (editingIndex !== null) {
       setCvData(prev => ({
@@ -279,7 +328,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       }));
     }
 
-    setManual({ uni: "", jur: "", gel: "", thn: "", ipk: "", matkul: "" });
+    setManual({ uni: "", jur: "", gel: "", thn: "", ipk: "", matkul: "", ket: "" });
   };
 
   const handleEdit = (index: number) => {
@@ -290,7 +339,8 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       gel: data.Gelar,
       thn: data.Tahun_Lulus,
       ipk: data.IPK || "",
-      matkul: data.Matkul || ""
+      matkul: data.Matkul || "",
+      ket: data.keterangan || ""
     });
     setEditingIndex(index);
     setActiveTab("manual");
@@ -307,7 +357,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
 
   return (
     <div>
-      <div className="flex gap-2 mt-2 mb-6 border-b">
+      <div className="builder-tabs">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -324,7 +374,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         </div>
       {/* ================= UPLOAD FORM ================= */}
       {activeTab === "upload" && (
-        <div key="tab-upload" className="p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
+        <div key="tab-upload" className="builder-inner-panel p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
           <input 
               type="file" 
               ref={fileInputRef}
@@ -357,7 +407,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       )}
       {/* ================= MANUAL FORM ================= */}
       {activeTab === "manual" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
+        <div className="builder-inner-panel grid grid-cols-1 md:grid-cols-2 gap-5 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
 
           {/* Institusi */}
           <div>
@@ -437,6 +487,19 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             />
           </div>
 
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-bold mb-1">
+              Keterangan
+            </label>
+            <textarea
+              className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
+              placeholder="Achievement, Organization, etc"
+              value={manual.ket || ""}
+              onChange={e => setManual({ ...manual, ket: e.target.value })}
+            />
+          </div>
+
           {/* INDICATOR EDIT */}
           {editingIndex !== null && (
             <p className="block text-sm font-bold mb-1">
@@ -456,7 +519,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         </div>
       )}
 
-      <div className="mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
+      <div className="builder-list-panel mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
         <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-4 flex items-center gap-2">
           Daftar Pendidikan <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full text-[var(--foreground)]">{cvData.Education.length}</span>
         </h3>
@@ -469,7 +532,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           {cvData.Education.map((e, i) => (
             <div
               key={i}
-              className="bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border p-4 rounded-lg flex justify-between items-center shadow-sm hover:shadow-md transition"
+              className="builder-list-item bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border p-4 rounded-lg shadow-sm hover:shadow-md transition"
             >
               <div>
                 <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_92%,black)]">{e.Institusi}</p>
@@ -486,9 +549,14 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
                     Mata Kuliah Relevan: {e.Matkul}
                   </p>
                 )}
+                {e.keterangan && (
+                  <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_78%,white)]">
+                    Keterangan: {e.keterangan}
+                  </p>
+                )}
               </div>
 
-              <div className="flex gap-2">
+              <div className="builder-icon-actions">
                 <button
                   onClick={() => handleEdit(i)}
                   aria-label="Edit pendidikan"
@@ -510,7 +578,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         </div>
       </div>
 
-      <div className="flex justify-between mt-8">
+      <div className="builder-form-actions mt-8">
         <button
           onClick={prevStep}
           className="cursor-pointer px-6 py-2 bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] rounded-lg font-bold hover:bg-[color-mix(in_oklab,var(--color-soft)_75%,white)] flex items-center gap-2"

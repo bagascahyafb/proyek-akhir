@@ -3,6 +3,13 @@ import axios from "axios";
 import { StepProps } from "@/types";
 import { useModal, CustomModal } from "./custommodal";
 import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon, LoadingTwotoneLoop } from "./icons";
+import {
+  buildDuplicateKey,
+  filterUniqueNewItems,
+  formatDuplicateMessage,
+  isDuplicateItem,
+  normalizeDuplicateValue,
+} from "./duplicate-data";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -60,6 +67,12 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
 
   const { modalProps, showAlert, showConfirm, showSuccess } = useModal();
 
+  const getCertificationDuplicateKey = (entry: { Nama: string; Penerbit: string; Tahun: string | number }) =>
+    buildDuplicateKey([entry.Nama, entry.Penerbit, entry.Tahun]);
+
+  const getAwardDuplicateKey = (entry: { Nama_Award: string; Judul_Kompetisi?: string; Pemberi: string; Tahun: string }) =>
+    buildDuplicateKey([entry.Nama_Award, entry.Judul_Kompetisi, entry.Pemberi, entry.Tahun]);
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     type UploadResult = {
       certification?: { Nama: string; Penerbit: string; Tahun: string; Masa_Berlaku?: string };
@@ -110,6 +123,8 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     const acceptedResults: UploadResult[] = [];
     const acceptedDocumentNames: string[] = [];
     const warningCandidates: WarningCandidate[] = [];
+    let duplicateCount = 0;
+    const duplicateDetails: string[] = [];
 
     const formatDocumentName = (value?: string) => {
       const cleanValue = value?.trim();
@@ -126,17 +141,15 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       }
 
       return status === "warning"
-        ? `Data Meragukan dengan kemiripan nama ${score}% terhadap referensi. Perlu konfirmasi.`
-        : `Data Tidak sesuai dengan kemiripan nama ${score}% terhadap referensi.`;
+        ? `Nama pada data dokumen meragukan terhadap profil. Perlu konfirmasi.`
+        : `Nama pada data dokumen tidak sesuai terhadap profil.`;
     };
 
     const formatValidationBlock = (
       fileName: string,
       statusMessage: string,
-      score: number | null,
       extractedName: string
     ) => {
-      const scoreText = score !== null ? `${score}%` : "Tidak tersedia";
       return [
         `${fileName}`,
         `Alasan Ditolak : ${statusMessage}`,
@@ -178,23 +191,81 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       return result;
     };
 
+    const filterDuplicateUploadResults = (results: UploadResult[]) => {
+      const certifications = [...cvData.Certifications];
+      const awards = [...cvData.Awards];
+      const hardSkillKeys = new Set(cvData.Skills_Hard.map(normalizeDuplicateValue).filter(Boolean));
+      const softSkillKeys = new Set(cvData.Skills_Soft.map(normalizeDuplicateValue).filter(Boolean));
+      const uniqueResults: UploadResult[] = [];
+      const duplicates: string[] = [];
+
+      for (const result of results) {
+        const nextResult: UploadResult = { skillsHard: [], skillsSoft: [] };
+
+        if (result.certification) {
+          if (isDuplicateItem(certifications, result.certification, getCertificationDuplicateKey)) {
+            duplicates.push(`Sertifikat: ${result.certification.Nama} - ${result.certification.Penerbit} (${result.certification.Tahun})`);
+          } else {
+            nextResult.certification = result.certification;
+            certifications.push(result.certification);
+          }
+        }
+
+        if (result.award) {
+          if (isDuplicateItem(awards, result.award, getAwardDuplicateKey)) {
+            duplicates.push(`Penghargaan: ${result.award.Nama_Award} - ${result.award.Pemberi} (${result.award.Tahun})`);
+          } else {
+            nextResult.award = result.award;
+            awards.push(result.award);
+          }
+        }
+
+        for (const skill of result.skillsHard) {
+          const key = normalizeDuplicateValue(skill);
+          if (!key || hardSkillKeys.has(key)) {
+            duplicates.push(`Hard skill: ${skill}`);
+          } else {
+            hardSkillKeys.add(key);
+            nextResult.skillsHard.push(skill);
+          }
+        }
+
+        for (const skill of result.skillsSoft) {
+          const key = normalizeDuplicateValue(skill);
+          if (!key || softSkillKeys.has(key)) {
+            duplicates.push(`Soft skill: ${skill}`);
+          } else {
+            softSkillKeys.add(key);
+            nextResult.skillsSoft.push(skill);
+          }
+        }
+
+        if (nextResult.certification || nextResult.award || nextResult.skillsHard.length || nextResult.skillsSoft.length) {
+          uniqueResults.push(nextResult);
+        }
+      }
+
+      return { uniqueResults, duplicates };
+    };
+
     const applyUploadResults = (results: UploadResult[]) => {
       if (!results.length) return;
       setCvData((prev) => {
+        const certifications = results.flatMap((result) => result.certification ? [result.certification] : []);
+        const awards = results.flatMap((result) => result.award ? [result.award] : []);
+        const hardSkills = results.flatMap((result) => result.skillsHard);
+        const softSkills = results.flatMap((result) => result.skillsSoft);
+        const uniqueCertifications = filterUniqueNewItems(prev.Certifications, certifications, getCertificationDuplicateKey).items;
+        const uniqueAwards = filterUniqueNewItems(prev.Awards, awards, getAwardDuplicateKey).items;
+        const uniqueHardSkills = filterUniqueNewItems(prev.Skills_Hard, hardSkills, normalizeDuplicateValue).items;
+        const uniqueSoftSkills = filterUniqueNewItems(prev.Skills_Soft, softSkills, normalizeDuplicateValue).items;
         const newData = {
           ...prev,
-          Certifications: [...prev.Certifications],
-          Awards: [...prev.Awards],
-          Skills_Hard: [...prev.Skills_Hard],
-          Skills_Soft: [...prev.Skills_Soft],
+          Certifications: [...prev.Certifications, ...uniqueCertifications],
+          Awards: [...prev.Awards, ...uniqueAwards],
+          Skills_Hard: [...prev.Skills_Hard, ...uniqueHardSkills],
+          Skills_Soft: [...prev.Skills_Soft, ...uniqueSoftSkills],
         };
-
-        for (const result of results) {
-          if (result.certification) newData.Certifications.push(result.certification);
-          if (result.award) newData.Awards.push(result.award);
-          if (result.skillsHard.length) newData.Skills_Hard.push(...result.skillsHard);
-          if (result.skillsSoft.length) newData.Skills_Soft.push(...result.skillsSoft);
-        }
 
         return newData;
       });
@@ -236,7 +307,6 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               formatValidationBlock(
                 file.name,
                 formatValidationMessage("invalid", score, validation?.message),
-                score,
                 formatDocumentName(validation?.extracted_name)
               )
             );
@@ -263,7 +333,14 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      applyUploadResults(acceptedResults);
+      const uniqueAccepted = filterDuplicateUploadResults(acceptedResults);
+      const uniqueWarning = filterDuplicateUploadResults([...uniqueAccepted.uniqueResults, ...warningCandidates.map((item) => item.result)]);
+      const uniqueWarningResults = uniqueWarning.uniqueResults.slice(uniqueAccepted.uniqueResults.length);
+      savedCount = uniqueAccepted.uniqueResults.length;
+      duplicateDetails.push(...uniqueAccepted.duplicates, ...uniqueWarning.duplicates);
+      duplicateCount = duplicateDetails.length;
+
+      applyUploadResults(uniqueAccepted.uniqueResults);
 
       const buildDetailLines = (savedWarningCount: number, includeWarningList: boolean) => {
         const lines: string[] = [`${savedCount + savedWarningCount} file disimpan ke kategori ${uploadCategory}.`];
@@ -279,7 +356,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             "",
             `Perlu konfirmasi (${warningCandidates.length}):`,
             ...warningCandidates.map((item) => {
-              return formatValidationBlock(item.fileName, item.message, item.score, item.extractedName);
+              return formatValidationBlock(item.fileName, item.message, item.extractedName);
             })
           );
         }
@@ -295,10 +372,13 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
         if (processingFailedCount > 0) {
           lines.push("", `Dokumen gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
         }
+        if (duplicateCount > 0) {
+          lines.push("", `Data duplikat tidak disimpan (${duplicateCount}):`, ...duplicateDetails.map((item) => `- ${item}`));
+        }
         return lines.join("\n");
       };
 
-      if (warningCandidates.length > 0) {
+      if (warningCandidates.length > 0 && uniqueWarningResults.length > 0) {
         const warningMessageLines = [
           buildDetailLines(0, true),
           "",
@@ -309,8 +389,8 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           "Konfirmasi Dokumen Meragukan",
           warningMessageLines.join("\n"),
           () => {
-            applyUploadResults(warningCandidates.map((item) => item.result));
-            showSuccess("Upload selesai", buildDetailLines(warningCandidates.length, true));
+            applyUploadResults(uniqueWarningResults);
+            showSuccess("Upload selesai", buildDetailLines(uniqueWarningResults.length, true));
           },
           () => {
             if (savedCount > 0) {
@@ -325,7 +405,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
 
       if (savedCount > 0) {
         showSuccess("Upload selesai", buildDetailLines(0, true));
-      } else if (processingFailedCount > 0 || invalidCount > 0 || oversizedDetails.length > 0) {
+      } else if (processingFailedCount > 0 || invalidCount > 0 || oversizedDetails.length > 0 || duplicateCount > 0) {
         showAlert("Upload gagal", buildDetailLines(0, true));
       }
     }
@@ -354,6 +434,36 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       return showAlert("Perhatian", "Isi Judul Penghargaan, Kompetisi, Penerbit, dan Tahun terlebih dahulu!");
     }
 
+    if (manualForm.kategori === "Kompetisi") {
+      const awardData = {
+        Nama_Award: nama,
+        Judul_Kompetisi: judulKompetisi,
+        Pemberi: penerbit,
+        Tahun: tahun,
+      };
+
+      if (isDuplicateItem(cvData.Awards, awardData, getAwardDuplicateKey, editingState?.type === "Kompetisi" ? editingState.index : null)) {
+        return showAlert(
+          "Data duplikat",
+          formatDuplicateMessage("Penghargaan", [`${awardData.Nama_Award} - ${awardData.Pemberi} (${awardData.Tahun})`])
+        );
+      }
+    } else {
+      const certData = {
+        Nama: nama,
+        Penerbit: penerbit,
+        Tahun: Number(tahun),
+        Masa_Berlaku: masaBerlaku ? Number(masaBerlaku) : "",
+      };
+
+      if (isDuplicateItem(cvData.Certifications, certData, getCertificationDuplicateKey, editingState?.type === "Keahlian" ? editingState.index : null)) {
+        return showAlert(
+          "Data duplikat",
+          formatDuplicateMessage("Sertifikat", [`${certData.Nama} - ${certData.Penerbit} (${certData.Tahun})`])
+        );
+      }
+    }
+
     setCvData((prev) => {
       const newData = { ...prev };
 
@@ -364,6 +474,14 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           Pemberi: penerbit,
           Tahun: tahun,
         };
+
+        if (isDuplicateItem(prev.Awards, awardData, getAwardDuplicateKey, editingState?.type === "Kompetisi" ? editingState.index : null)) {
+          showAlert(
+            "Data duplikat",
+            formatDuplicateMessage("Penghargaan", [`${awardData.Nama_Award} - ${awardData.Pemberi} (${awardData.Tahun})`])
+          );
+          return prev;
+        }
 
         if (editingState?.type === "Kompetisi") {
           newData.Awards = prev.Awards.map((item, i) => (i === editingState.index ? awardData : item));
@@ -377,6 +495,14 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           Tahun: Number(tahun),
           Masa_Berlaku: masaBerlaku ? Number(masaBerlaku) : "",
         };
+
+        if (isDuplicateItem(prev.Certifications, certData, getCertificationDuplicateKey, editingState?.type === "Keahlian" ? editingState.index : null)) {
+          showAlert(
+            "Data duplikat",
+            formatDuplicateMessage("Sertifikat", [`${certData.Nama} - ${certData.Penerbit} (${certData.Tahun})`])
+          );
+          return prev;
+        }
 
         if (editingState?.type === "Keahlian") {
           newData.Certifications = prev.Certifications.map((item, i) => (i === editingState.index ? certData : item));
@@ -434,7 +560,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
 
   return (
     <div>
-      <div className="flex gap-2 mt-2 mb-6 border-b">
+      <div className="builder-tabs">
         {["upload", "manual"].map((tab) => (
           <button
             key={tab}
@@ -450,9 +576,9 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
 
       {activeTab === "upload" ? (
         <div className="space-y-4">
-          <div className="bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] p-4 rounded-xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
+          <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] p-4 rounded-xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
             <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-3 text-sm">Jenis dokumen yang akan diupload:</p>
-            <div className="flex gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className={`flex-1 cursor-pointer border p-3 rounded-lg flex items-center gap-2 transition ${uploadCategory === "Keahlian" ? "bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border-[var(--color-primary)] ring-2 ring-[color-mix(in_oklab,var(--color-accent)_55%,white)]" : "bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] border-[color-mix(in_oklab,var(--color-soft)_55%,white)]"}`}>
                 <input
                   type="radio"
@@ -485,7 +611,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             </div>
           </div>
 
-          <div className="p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
+          <div className="builder-inner-panel p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
             <input
               type="file"
               ref={fileInputRef}
@@ -520,7 +646,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
+        <div className="builder-inner-panel grid grid-cols-1 md:grid-cols-2 gap-4 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border">
           <div className="md:col-span-2">
             <label className="block text-sm font-bold mb-1">Kategori</label>
             <select
@@ -616,7 +742,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       )}
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-4 rounded-xl border">
+        <div className="builder-list-panel bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-4 rounded-xl border">
           <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_85%,black)] mb-4 flex items-center gap-2">
             Sertifikat Keahlian 
             <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full">
@@ -626,14 +752,14 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           {cvData.Certifications.length === 0 && <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] italic">Belum ada data.</p>}
           <ul className="space-y-2">
             {cvData.Certifications.map((certificate, i) => (
-              <li key={i} className="bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] p-3 rounded border flex justify-between items-start text-sm shadow-sm">
+              <li key={i} className="builder-list-item bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] p-3 rounded border text-sm shadow-sm">
                 <div>
                   <p className="font-bold text-[var(--foreground)]">{certificate.Nama}</p>
                   <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">
                     {certificate.Penerbit} {formatCertificateYearRange(certificate.Tahun, certificate.Masa_Berlaku) && `(${formatCertificateYearRange(certificate.Tahun, certificate.Masa_Berlaku)})`}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                <div className="builder-icon-actions">
                   <button onClick={() => handleEditCert(i)} className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" aria-label="Edit sertifikat"><EditIcon className="h-5 w-5" /></button>
                   <button onClick={() => handleDeleteCert(i)} className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:text-[color-mix(in_oklab,var(--color-primary)_82%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] transition" aria-label="Hapus sertifikat"><TrashIcon className="h-5 w-5" /></button>
                 </div>
@@ -642,7 +768,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           </ul>
         </div>
 
-        <div className="bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-4 rounded-xl border">
+        <div className="builder-list-panel bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-4 rounded-xl border">
           <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-4 flex items-center gap-2">
             Penghargaan / Lomba 
             <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full">
@@ -652,7 +778,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           {cvData.Awards.length === 0 && <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] italic">Belum ada data.</p>}
           <ul className="space-y-2">
             {cvData.Awards.map((award, i) => (
-              <li key={i} className="bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] p-3 rounded border flex justify-between items-start text-sm shadow-sm">
+              <li key={i} className="builder-list-item bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] p-3 rounded border text-sm shadow-sm">
                 <div>
                   <p className="font-bold text-[var(--foreground)]">{award.Nama_Award}</p>
                   <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">
@@ -660,7 +786,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
                     {award.Pemberi} {award.Tahun && `(${award.Tahun})`}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                <div className="builder-icon-actions">
                   <button onClick={() => handleEditAward(i)} className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" aria-label="Edit penghargaan"><EditIcon className="h-5 w-5" /></button>
                   <button onClick={() => handleDeleteAward(i)} className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:text-[color-mix(in_oklab,var(--color-primary)_82%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] transition" aria-label="Hapus penghargaan"><TrashIcon className="h-5 w-5" /></button>
                 </div>
@@ -670,7 +796,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
         </div>
       </div>
 
-      <div className="flex justify-between mt-8 pt-6">
+      <div className="builder-form-actions mt-8 pt-6">
         <button
           type="button"
           onClick={prevStep}

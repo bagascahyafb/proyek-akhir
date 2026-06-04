@@ -218,7 +218,7 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
         </div>
       </div>
 
-      <div className="flex justify-end mt-8 pt-6">
+      <div className="builder-form-actions justify-end mt-8 pt-6">
         <button
           type="button"
           onClick={handleNext}

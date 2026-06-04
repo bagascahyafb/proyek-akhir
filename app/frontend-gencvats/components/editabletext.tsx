@@ -1,42 +1,70 @@
-import { useEffect, useRef } from "react";
 import type { KeyboardEventHandler } from "react";
 
 type Props = {
   value: string;
   onChange: (val: string) => void;
   className?: string;
-  onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement | HTMLInputElement>;
+  inline?: boolean;
 };
 
-export default function EditableText({ value, onChange, className, onKeyDown }: Props) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+export default function EditableText({
+  value,
+  onChange,
+  className = "",
+  onKeyDown,
+  inline,
+}: Props) {
+  const safeValue = typeof value === "string" ? value : "";
 
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.style.height = "auto";
-      ref.current.style.height = ref.current.scrollHeight + "px";
-    }
-  }, [value]);
+  if (inline) {
+    return (
+      <span className="relative inline-block align-baseline">
+        {/* Tambahin spasi kosong ("  ") di belakang teks buat ngasih ruang napas kursor dan huruf terakhir */}
+        <span className={`invisible whitespace-pre pointer-events-none ${className}`}>
+          {safeValue ? safeValue + "  " : "   "}
+        </span>
+        
+        {/* Input Asli */}
+        <input
+          type="text"
+          value={safeValue}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown as any}
+          className={`absolute inset-0 w-full h-full outline-none ${className}`}
+          style={{ 
+            background: "transparent", 
+            padding: 0, 
+            margin: 0, 
+            border: "none", 
+            minHeight: "0",
+            boxShadow: "none",
+            color: "inherit"
+          }}
+        />
+      </span>
+    );
+  }
 
+  // Multiline
   return (
     <textarea
-      ref={ref}
-      value={typeof value === "string" ? value : ""}
+      value={safeValue}
       onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
+      onKeyDown={onKeyDown as any}
       rows={1}
-      className={`
-        w-full
-        bg-transparent
-        outline-none
-        resize-none
-        overflow-hidden
-        
-        leading-tight
-        p-0 m-0
-        
-        ${className}
-      `}
+      className={`w-full outline-none resize-none overflow-hidden leading-tight ${className}`}
+      style={{ 
+        height: "auto", 
+        fieldSizing: "content",
+        background: "transparent",
+        padding: 0,
+        margin: 0,
+        border: "none",
+        minHeight: "0",
+        boxShadow: "none",
+        color: "inherit"
+      }}
     />
   );
 }

@@ -25,6 +25,61 @@ const parseFromBullets = (text: string) =>
     .map(line => line.replace(/^(?:[-*]|\u2022)\s?/, ""))
     .join("\n");
 
+// ── Date helpers (same logic as experience.tsx) ──────────────────────────────
+const getDateLocale = (language?: string) =>
+  language?.toLowerCase().startsWith("inggris") ? "id-ID" : "en-US";
+
+const normalizeMonthValue = (value: string) => {
+  if (!value) return "";
+  const match = value.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  return match ? `${match[1]}-${match[2]}` : "";
+};
+
+const parseMonthLabel = (value: string) => {
+  const normalized = value.trim().replace(".", "").toLowerCase();
+  const match = normalized.match(/^([a-z]+)\s+((?:19|20)\d{2})$/i);
+  if (!match) return "";
+  const monthMap: Record<string, string> = {
+    jan:"01",januari:"01",january:"01",feb:"02",februari:"02",february:"02",
+    mar:"03",maret:"03",march:"03",apr:"04",april:"04",may:"05",mei:"05",
+    jun:"06",juni:"06",june:"06",jul:"07",juli:"07",july:"07",aug:"08",
+    agu:"08",ags:"08",agustus:"08",august:"08",sep:"09",sept:"09",september:"09",
+    oct:"10",okt:"10",oktober:"10",october:"10",nov:"11",november:"11",
+    dec:"12",des:"12",desember:"12",december:"12",
+  };
+  const month = monthMap[match[1]];
+  return month ? `${match[2]}-${month}` : "";
+};
+
+const parseMonthValue = (value: string) =>
+  normalizeMonthValue(value) || parseMonthLabel(value);
+
+const formatDateLabel = (value: string, language?: string) => {
+  if (!value) return "";
+  const monthValue = parseMonthValue(value);
+  if (!monthValue) return "";
+  const date = new Date(`${monthValue}-01T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(getDateLocale(language), {
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+
+const formatDurationLabel = (duration: string, language?: string) => {
+  if (!duration) return "";
+  const [startRaw, endRaw] = duration.split(/\s+-\s+/);
+  const startLabel = formatDateLabel(startRaw, language);
+  if (!startLabel) return duration;
+  if (!endRaw) return startLabel;
+  const isCurrent = /sekarang|present/i.test(endRaw);
+  const endLabel = isCurrent
+    ? getDateLocale(language) === "id-ID" ? "Sekarang" : "Present"
+    : formatDateLabel(endRaw, language);
+  return endLabel ? `${startLabel} - ${endLabel}` : startLabel;
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 const extractYear = (value?: string | number) => {
   if (!value) return "";
   const match = String(value).match(/\b(?:19|20)\d{2}\b/);
@@ -236,13 +291,13 @@ export default function Step6Finalization({
     .map((award, index) => ({ award, index }))
     .filter(({ index }) => selectedContent.awards[index]);
 
-  useEffect(() => {
-    const textarea = document.querySelector("textarea");
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    }
-  }, [cvData.Personal_Info.Summary]);
+  // useEffect(() => {
+  //   const textarea = document.querySelector("textarea");
+  //   if (textarea) {
+  //     textarea.style.height = "auto";
+  //     textarea.style.height = `${textarea.scrollHeight}px`;
+  //   }
+  // }, [cvData.Personal_Info.Summary]);
 
   return (
     <div>
@@ -254,9 +309,9 @@ export default function Step6Finalization({
           </p>
         </div>
       )}
-      <div className="bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
+      <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
         <h3 className="font-bold text-lg mb-4">CV Preview (Editable)</h3>
-        <div className="bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border rounded-lg p-8 max-h-[600px] overflow-y-auto text-[14px] leading-relaxed">
+        <div className="builder-document-preview bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border rounded-lg p-8 text-[14px] leading-relaxed">
           {/* HEADER */}
           <div className="text-center mb-4 space-y-1">
             <h1 className="text-xl font-bold uppercase">{cvData.Personal_Info.Nama}</h1>
@@ -298,16 +353,53 @@ export default function Step6Finalization({
                 (exp, i) =>
                   selectedContent.experience[i] && (
                     <div key={i} className="mb-3">
+                      {/* Baris 1: Posisi | Perusahaan  (Tipe · Jenis) */}
+                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
+                        <EditableText
+                          value={exp.Posisi}
+                          onChange={val => {
+                            const updated = [...cvData.Experience];
+                            updated[i].Posisi = val;
+                            setCvData({ ...cvData, Experience: updated });
+                          }}
+                          className="font-semibold text-sm"
+                          inline
+                        />
+                        <span className="font-semibold text-sm shrink-0">|</span>
+                        <EditableText
+                          value={exp.Perusahaan}
+                          onChange={val => {
+                            const updated = [...cvData.Experience];
+                            updated[i].Perusahaan = val;
+                            setCvData({ ...cvData, Experience: updated });
+                          }}
+                          className="font-semibold text-sm"
+                          inline
+                        />
+                        {(exp.Tipe || exp.Jenis) && (
+                          <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_60%,white)] shrink-0 ml-1">
+                            ({[exp.Tipe, exp.Jenis].filter(Boolean).join(" · ")})
+                          </span>
+                        )}
+                      </div>
+                      {/* Baris 2: Durasi */}
+                      <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)] mt-0.5">
+                        {formatDurationLabel(exp.Durasi, cvData.Language)}
+                      </p>
+                      {/* Baris 3: Deskripsi */}
                       <EditableText
-                        value={`${exp.Posisi} | ${exp.Perusahaan}`}
+                        value={formatAsBullets(exp.Deskripsi)}
                         onChange={val => {
-                          const [pos, comp] = val.split("|");
                           const updated = [...cvData.Experience];
-                          updated[i].Posisi = pos?.trim() || "";
-                          updated[i].Perusahaan = comp?.trim() || "";
+                          updated[i].Deskripsi = parseFromBullets(val);
                           setCvData({ ...cvData, Experience: updated });
                         }}
-                        className="font-semibold text-sm"
+                        onKeyDown={handleBulletKeyDown(nextPlain => {
+                          const updated = [...cvData.Experience];
+                          updated[i].Deskripsi = nextPlain;
+                          setCvData({ ...cvData, Experience: updated });
+                        })}
+                        className="text-sm mt-0.5"
                       />
                     </div>
                   )
@@ -323,24 +415,40 @@ export default function Step6Finalization({
                 (proj, i) =>
                   selectedContent.projects[i] && (
                     <div key={i} className="mb-3">
-                      <EditableText
-                        value={proj.Nama_Proyek}
-                        onChange={val => {
-                          const updated = [...cvData.Projects];
-                          updated[i].Nama_Proyek = val;
-                          setCvData({ ...cvData, Projects: updated });
-                        }}
-                        className="font-semibold text-sm"
-                      />
-                      <EditableText
-                        value={proj.Tech_Stack}
-                        onChange={val => {
-                          const updated = [...cvData.Projects];
-                          updated[i].Tech_Stack = val;
-                          setCvData({ ...cvData, Projects: updated });
-                        }}
-                        className="text-xs"
-                      />
+                      {/* Baris 1: Nama Proyek | Role  (Tech Stack) */}
+                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
+                        <EditableText
+                          value={proj.Nama_Proyek}
+                          onChange={val => {
+                            const updated = [...cvData.Projects];
+                            updated[i].Nama_Proyek = val;
+                            setCvData({ ...cvData, Projects: updated });
+                          }}
+                          className="font-semibold text-sm"
+                          inline
+                        />
+                        <span className="font-semibold text-sm shrink-0">|</span>
+                        <EditableText
+                          value={proj.Role}
+                          onChange={val => {
+                            const updated = [...cvData.Projects];
+                            updated[i].Role = val;
+                            setCvData({ ...cvData, Projects: updated });
+                          }}
+                          className="font-semibold text-sm"
+                          inline
+                        />
+                        {proj.Tech_Stack && (
+                          <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_60%,white)] shrink-0 ml-1">
+                            ({proj.Tech_Stack})
+                          </span>
+                        )}
+                      </div>
+                      {/* Baris 2: Duration */}
+                      <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)] mt-0.5">
+                        {formatDurationLabel(proj.Duration, cvData.Language)}
+                      </p>
+                      {/* Baris 3: Deskripsi */}
                       <EditableText
                         value={formatAsBullets(proj.Deskripsi)}
                         onChange={val => {
@@ -353,7 +461,7 @@ export default function Step6Finalization({
                           updated[i].Deskripsi = nextPlain;
                           setCvData({ ...cvData, Projects: updated });
                         })}
-                        className="text-sm ml-3"
+                        className="text-sm mt-0.5"
                       />
                     </div>
                   )
@@ -370,25 +478,50 @@ export default function Step6Finalization({
                   selectedContent.education[i] && (
                     <div key={i} className="mb-3">
                       <EditableText
-                        value={`${edu.Institusi} | ${edu.Jurusan}`}
+                        value={`${edu.Institusi} (${edu.Tahun_Lulus})`}
                         onChange={val => {
-                          const [inst, major] = val.split("|");
+                          const [inst, thnlulus] = val.split("|");
                           const updated = [...cvData.Education];
                           updated[i].Institusi = inst?.trim() || "";
-                          updated[i].Jurusan = major?.trim() || "";
+                          updated[i].Tahun_Lulus = thnlulus?.trim() || "";
                           setCvData({ ...cvData, Education: updated });
                         }}
                         className="font-semibold text-sm"
                       />
                       <EditableText
-                        value={edu.Tahun_Lulus}
+                        value={`${edu.Jurusan} | ${edu.IPK ? `GPA: ${edu.IPK}` : ""}`.trim()}
                         onChange={val => {
+                          const [jurusan, ipkPart] = val.split("|");
                           const updated = [...cvData.Education];
-                          updated[i].Tahun_Lulus = val;
+                          updated[i].Jurusan = jurusan?.trim()  || "";
+                          updated[i].IPK = ipkPart?.trim().replace(/^(GPA:)?\s*/i, "") || "";
                           setCvData({ ...cvData, Education: updated });
                         }}
                         className="text-xs italic"
                       />
+                      {/* <EditableText
+                      value={edu.IPK || ""}
+                      onChange={val => {
+                        // hanya angka, titik, dan maksimal 4
+                        const cleaned = val.replace(/[^0-9.]/g, "");
+
+                        if (cleaned === "") {
+                          const updated = [...cvData.Education];
+                          updated[i].IPK = "";
+                          setCvData({ ...cvData, Education: updated });
+                          return;
+                        }
+
+                        const num = Number(cleaned);
+
+                        if (!Number.isNaN(num) && num >= 0 && num <= 4) {
+                          const updated = [...cvData.Education];
+                          updated[i].IPK = cleaned;
+                          setCvData({ ...cvData, Education: updated });
+                        }
+                      }}
+                      className="text-xs"
+                    /> */}
                     </div>
                   )
               )}
