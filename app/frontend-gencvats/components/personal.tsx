@@ -91,16 +91,16 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
     const portfolioRaw = cvData.Personal_Info.Portfolio.trim();
 
     if (!cvData.Personal_Info.Nama || !email) {
-      return showAlert("Peringatan", "Nama dan Email wajib diisi sebelum melanjutkan!");
+      return showAlert("Lengkapi data utama", "Isi nama dan email dulu.");
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return showAlert("Format Email", "Gunakan format email yang benar, contoh: nama@email.com");
+      return showAlert("Email belum valid", "Contoh yang benar: nama@email.com");
     }
 
     if (phoneNumber && (phoneNumber.length < 6 || phoneNumber.length > 15)) {
-      return showAlert("Nomor Telepon", "Nomor telepon harus 6-15 digit angka.");
+      return showAlert("Nomor HP belum valid", "Gunakan 6-15 digit angka.");
     }
 
     if (linkedInRaw) {
@@ -108,11 +108,11 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
       try {
         linkedInUrl = normalizeUrl(linkedInRaw);
       } catch {
-        return showAlert("LinkedIn", "Format LinkedIn URL tidak valid.");
+        return showAlert("Link LinkedIn belum valid", "Contoh: https://linkedin.com/in/username");
       }
 
       if (!linkedInUrl.hostname.toLowerCase().includes("linkedin.com")) {
-        return showAlert("LinkedIn", "Gunakan link LinkedIn yang valid, contoh: https://linkedin.com/in/username");
+        return showAlert("Link LinkedIn belum valid", "Gunakan link profil LinkedIn kamu.");
       }
 
       updateInfo("LinkedIn", linkedInUrl.toString());
@@ -123,7 +123,7 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
       try {
         portfolioUrl = normalizeUrl(portfolioRaw);
       } catch {
-        return showAlert("GitHub/Portofolio", "Format link GitHub/Portofolio tidak valid.");
+        return showAlert("Link portofolio belum valid", "Gunakan link GitHub atau portofolio yang bisa dibuka.");
       }
 
       updateInfo("Portfolio", portfolioUrl.toString());
@@ -182,7 +182,7 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
               onChange={(e) => updatePhone(phoneCode, e.target.value)}
             />
           </div>
-          <p className="text-xs mt-1 text-[color-mix(in_oklab,var(--foreground)_65%,white)]">Kode negara dipilih otomatis, tapi bisa kamu ganti.</p>
+          <p className="text-xs mt-1 text-[color-mix(in_oklab,var(--foreground)_65%,white)]">Bisa diganti kalau kodenya belum sesuai.</p>
         </div>
 
         <div>
@@ -198,7 +198,7 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         <div>
-          <label className="block text-sm font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-2">LinkedIn URL</label>
+          <label className="block text-sm font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-2">LinkedIn</label>
           <input
             className="w-full border border-[color-mix(in_oklab,var(--color-soft)_75%,white)] p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
             placeholder="https://linkedin.com/in/username"
@@ -211,7 +211,7 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
           <label className="block text-sm font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-2">GitHub / Portofolio</label>
           <input
             className="w-full border border-[color-mix(in_oklab,var(--color-soft)_75%,white)] p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
-            placeholder="https://github.com/username atau https://portfolio.com"
+            placeholder="https://github.com/username"
             value={cvData.Personal_Info.Portfolio || ""}
             onChange={(e) => updateInfo("Portfolio", e.target.value)}
           />
@@ -224,7 +224,7 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
           onClick={handleNext}
           className="cursor-pointer px-6 py-2 rounded-lg font-bold text-white bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] transition-all transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg flex items-center gap-2"
         >
-          Next
+          Lanjut
           <ArrowForwardIcon className="h-4 w-4" />
         </button>
       </div>

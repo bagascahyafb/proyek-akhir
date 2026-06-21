@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 import { CVDataState, SelectedCVContent, StepProps } from "@/types";
-import { useModal, CustomModal } from "./custommodal";
+import { BuilderLoadingOverlay, useModal, CustomModal } from "./custommodal";
 import EditableText from "@/components/editabletext";
-import { ArrowBackwardIcon, FilePdfIcon, FileWordIcon, WarningIcon } from "./icons";
+import { ArrowBackwardIcon, EditIcon, FilePdfIcon, FileWordIcon, WarningIcon } from "./icons";
 
 type FinalizationProps = StepProps & {
   selectedContent: SelectedCVContent;
@@ -185,29 +185,12 @@ export default function Step6Finalization({
     };
   };
 
-  // const validateSelectedContent = (downloadPayload: CVDataState) => {
-  //   const hasSelectedContent =
-  //     downloadPayload.Education.length > 0 ||
-  //     downloadPayload.Experience.length > 0 ||
-  //     downloadPayload.Projects.length > 0 ||
-  //     downloadPayload.Skills_Hard.length > 0 ||
-  //     downloadPayload.Skills_Soft.length > 0 ||
-  //     downloadPayload.Certifications.length > 0 ||
-  //     downloadPayload.Awards.length > 0;
-
-  //   if (!hasSelectedContent) {
-  //     showAlert("Perhatian", "Pilih minimal satu isi data yang ingin dimasukkan ke CV.");
-  //   }
-
-  //   return hasSelectedContent;
-  // };
-
   const handleDownload = async () => {
     const downloadPayload = buildDownloadPayload();
     // if (!validateSelectedContent(downloadPayload)) return;
 
     setLoading(true);
-    setStatusMsg("Sedang men-generate file .docx...");
+    setStatusMsg("Membuat file DOCX...");
 
     try {
       const res = await axios.post(`${apiUrl}/generate-docx`, downloadPayload, {
@@ -230,10 +213,10 @@ export default function Step6Finalization({
       link.click();
       link.remove();
 
-      showSuccess("File berhasil dibuat", "Sistem berhasil generate dan mengunduh CV Anda.");
+      showSuccess("DOCX siap", "File sudah diunduh.");
     } catch (error) {
       console.error(error);
-      showAlert("Error", "Gagal mengunduh file.");
+      showAlert("Gagal mengunduh DOCX", "Coba lagi setelah backend berjalan.");
     } finally {
       setLoading(false);
       setStatusMsg("");
@@ -245,7 +228,7 @@ export default function Step6Finalization({
     // if (!validateSelectedContent(downloadPayload)) return;
 
     setLoading(true);
-    setStatusMsg("Sedang men-generate file PDF...");
+    setStatusMsg("Membuat file PDF...");
 
     try {
       const res = await axios.post(`${apiUrl}/generate-pdf`, downloadPayload, {
@@ -265,10 +248,10 @@ export default function Step6Finalization({
       link.click();
       link.remove();
 
-      showSuccess("File berhasil dibuat", "PDF berhasil diunduh.");
+      showSuccess("PDF siap", "File sudah diunduh.");
     } catch (error) {
       console.error(error);
-      showAlert("Error", "Gagal mengunduh PDF.");
+      showAlert("Gagal mengunduh PDF", "Coba lagi setelah backend berjalan.");
     } finally {
       setLoading(false);
       setStatusMsg("");
@@ -291,296 +274,13 @@ export default function Step6Finalization({
     .map((award, index) => ({ award, index }))
     .filter(({ index }) => selectedContent.awards[index]);
 
-  // useEffect(() => {
-  //   const textarea = document.querySelector("textarea");
-  //   if (textarea) {
-  //     textarea.style.height = "auto";
-  //     textarea.style.height = `${textarea.scrollHeight}px`;
-  //   }
-  // }, [cvData.Personal_Info.Summary]);
-
   return (
     <div>
-      {loading && (
-        <div className="absolute inset-0 bg-[color-mix(in_oklab,var(--color-surface)_92%,white)] z-50 flex flex-col items-center justify-center p-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[var(--color-primary)] mb-4"></div>
-          <p className="font-bold text-lg text-[color-mix(in_oklab,var(--foreground)_90%,black)] animate-pulse text-center">
-            {statusMsg}
-          </p>
-        </div>
-      )}
-      <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
-        <h3 className="font-bold text-lg mb-4">CV Preview (Editable)</h3>
-        <div className="builder-document-preview bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border rounded-lg p-8 text-[14px] leading-relaxed">
-          {/* HEADER */}
-          <div className="text-center mb-4 space-y-1">
-            <h1 className="text-xl font-bold uppercase">{cvData.Personal_Info.Nama}</h1>
-            <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_78%,white)]">
-              {[
-                cvData.Personal_Info.HP,
-                cvData.Personal_Info.Email,
-                cvData.Personal_Info.LinkedIn,
-                cvData.Personal_Info.Alamat,
-                cvData.Personal_Info.Portfolio
-              ]
-                .filter(Boolean)
-                .join(" | ")}
-            </p>
-          </div>
-
-          {/* SUMMARY */}
-          {cvData.Personal_Info.Summary && (
-            <div className="mb-4">
-              <h4 className="font-bold border-b border-black text-sm mb-1">Professional Summary</h4>
-              <EditableText
-                value={cvData.Personal_Info.Summary}
-                onChange={val =>
-                  setCvData({
-                    ...cvData,
-                    Personal_Info: { ...cvData.Personal_Info, Summary: val }
-                  })
-                }
-                className="text-sm text-justify"
-              />
-            </div>
-          )}
-
-          {/* EXPERIENCE */}
-          {cvData.Experience.some((_, index) => selectedContent.experience[index]) && (
-            <div className="mb-4">
-              <h4 className="font-bold border-b border-black text-sm mb-1">Work Experience</h4>
-              {cvData.Experience.map(
-                (exp, i) =>
-                  selectedContent.experience[i] && (
-                    <div key={i} className="mb-3">
-                      {/* Baris 1: Posisi | Perusahaan  (Tipe · Jenis) */}
-                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
-                        <EditableText
-                          value={exp.Posisi}
-                          onChange={val => {
-                            const updated = [...cvData.Experience];
-                            updated[i].Posisi = val;
-                            setCvData({ ...cvData, Experience: updated });
-                          }}
-                          className="font-semibold text-sm"
-                          inline
-                        />
-                        <span className="font-semibold text-sm shrink-0">|</span>
-                        <EditableText
-                          value={exp.Perusahaan}
-                          onChange={val => {
-                            const updated = [...cvData.Experience];
-                            updated[i].Perusahaan = val;
-                            setCvData({ ...cvData, Experience: updated });
-                          }}
-                          className="font-semibold text-sm"
-                          inline
-                        />
-                        {(exp.Tipe || exp.Jenis) && (
-                          <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_60%,white)] shrink-0 ml-1">
-                            ({[exp.Tipe, exp.Jenis].filter(Boolean).join(" · ")})
-                          </span>
-                        )}
-                      </div>
-                      {/* Baris 2: Durasi */}
-                      <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)] mt-0.5">
-                        {formatDurationLabel(exp.Durasi, cvData.Language)}
-                      </p>
-                      {/* Baris 3: Deskripsi */}
-                      <EditableText
-                        value={formatAsBullets(exp.Deskripsi)}
-                        onChange={val => {
-                          const updated = [...cvData.Experience];
-                          updated[i].Deskripsi = parseFromBullets(val);
-                          setCvData({ ...cvData, Experience: updated });
-                        }}
-                        onKeyDown={handleBulletKeyDown(nextPlain => {
-                          const updated = [...cvData.Experience];
-                          updated[i].Deskripsi = nextPlain;
-                          setCvData({ ...cvData, Experience: updated });
-                        })}
-                        className="text-sm mt-0.5"
-                      />
-                    </div>
-                  )
-              )}
-            </div>
-          )}
-
-          {/* PROJECTS */}
-          {cvData.Projects.some((_, index) => selectedContent.projects[index]) && (
-            <div className="mb-4">
-              <h4 className="font-bold border-b border-black text-sm mb-1">Projects</h4>
-              {cvData.Projects.map(
-                (proj, i) =>
-                  selectedContent.projects[i] && (
-                    <div key={i} className="mb-3">
-                      {/* Baris 1: Nama Proyek | Role  (Tech Stack) */}
-                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
-                        <EditableText
-                          value={proj.Nama_Proyek}
-                          onChange={val => {
-                            const updated = [...cvData.Projects];
-                            updated[i].Nama_Proyek = val;
-                            setCvData({ ...cvData, Projects: updated });
-                          }}
-                          className="font-semibold text-sm"
-                          inline
-                        />
-                        <span className="font-semibold text-sm shrink-0">|</span>
-                        <EditableText
-                          value={proj.Role}
-                          onChange={val => {
-                            const updated = [...cvData.Projects];
-                            updated[i].Role = val;
-                            setCvData({ ...cvData, Projects: updated });
-                          }}
-                          className="font-semibold text-sm"
-                          inline
-                        />
-                        {proj.Tech_Stack && (
-                          <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_60%,white)] shrink-0 ml-1">
-                            ({proj.Tech_Stack})
-                          </span>
-                        )}
-                      </div>
-                      {/* Baris 2: Duration */}
-                      <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)] mt-0.5">
-                        {formatDurationLabel(proj.Duration, cvData.Language)}
-                      </p>
-                      {/* Baris 3: Deskripsi */}
-                      <EditableText
-                        value={formatAsBullets(proj.Deskripsi)}
-                        onChange={val => {
-                          const updated = [...cvData.Projects];
-                          updated[i].Deskripsi = parseFromBullets(val);
-                          setCvData({ ...cvData, Projects: updated });
-                        }}
-                        onKeyDown={handleBulletKeyDown(nextPlain => {
-                          const updated = [...cvData.Projects];
-                          updated[i].Deskripsi = nextPlain;
-                          setCvData({ ...cvData, Projects: updated });
-                        })}
-                        className="text-sm mt-0.5"
-                      />
-                    </div>
-                  )
-              )}
-            </div>
-          )}
-
-          {/* EDUCATION */}
-          {cvData.Education.some((_, index) => selectedContent.education[index]) && (
-            <div className="mb-4">
-              <h4 className="font-bold border-b border-black text-sm mb-1">Education</h4>
-              {cvData.Education.map(
-                (edu, i) =>
-                  selectedContent.education[i] && (
-                    <div key={i} className="mb-3">
-                      <EditableText
-                        value={`${edu.Institusi} (${edu.Tahun_Lulus})`}
-                        onChange={val => {
-                          const [inst, thnlulus] = val.split("|");
-                          const updated = [...cvData.Education];
-                          updated[i].Institusi = inst?.trim() || "";
-                          updated[i].Tahun_Lulus = thnlulus?.trim() || "";
-                          setCvData({ ...cvData, Education: updated });
-                        }}
-                        className="font-semibold text-sm"
-                      />
-                      <EditableText
-                        value={`${edu.Jurusan} | ${edu.IPK ? `GPA: ${edu.IPK}` : ""}`.trim()}
-                        onChange={val => {
-                          const [jurusan, ipkPart] = val.split("|");
-                          const updated = [...cvData.Education];
-                          updated[i].Jurusan = jurusan?.trim()  || "";
-                          updated[i].IPK = ipkPart?.trim().replace(/^(GPA:)?\s*/i, "") || "";
-                          setCvData({ ...cvData, Education: updated });
-                        }}
-                        className="text-xs italic"
-                      />
-                      {/* <EditableText
-                      value={edu.IPK || ""}
-                      onChange={val => {
-                        // hanya angka, titik, dan maksimal 4
-                        const cleaned = val.replace(/[^0-9.]/g, "");
-
-                        if (cleaned === "") {
-                          const updated = [...cvData.Education];
-                          updated[i].IPK = "";
-                          setCvData({ ...cvData, Education: updated });
-                          return;
-                        }
-
-                        const num = Number(cleaned);
-
-                        if (!Number.isNaN(num) && num >= 0 && num <= 4) {
-                          const updated = [...cvData.Education];
-                          updated[i].IPK = cleaned;
-                          setCvData({ ...cvData, Education: updated });
-                        }
-                      }}
-                      className="text-xs"
-                    /> */}
-                    </div>
-                  )
-              )}
-            </div>
-          )}
-
-          {/* SKILLS */}
-          {(selectedHardSkills.length > 0 || selectedSoftSkills.length > 0) && (
-            <div className="mb-4">
-              <h4 className="font-bold border-b border-black text-sm mb-1">Skills</h4>
-              {selectedHardSkills.length > 0 && (
-                <EditableText
-                  value={selectedHardSkills.map(({ skill }) => skill).join(", ")}
-                  onChange={() => {}}
-                  className="text-sm"
-                />
-              )}
-              {selectedSoftSkills.length > 0 && (
-                <EditableText
-                  value={selectedSoftSkills.map(({ skill }) => skill).join(", ")}
-                  onChange={() => {}}
-                  className="text-sm"
-                />
-              )}
-            </div>
-          )}
-
-          {/* CERTIFICATIONS & AWARDS */}
-          {(selectedCertifications.length > 0 || selectedAwards.length > 0) && (
-            <div className="mb-4">
-              <h4 className="font-bold border-b border-black text-sm mb-1">Certifications & Awards</h4>
-              {selectedCertifications.map(({ certification, index }) => {
-                const yearRange = formatCertificateYearRange(certification.Tahun, certification.Masa_Berlaku);
-                return (
-                  <EditableText
-                    key={`cert-${index}`}
-                    value={`${certification.Nama} - ${certification.Penerbit}${yearRange ? ` (${yearRange})` : ""}`}
-                    onChange={() => {}}
-                    className="text-sm ml-3"
-                  />
-                );
-              })}
-              {selectedAwards.map(({ award, index }) => (
-                <EditableText
-                  key={`award-${index}`}
-                  value={`Award: ${award.Nama_Award} - ${award.Pemberi} (${award.Tahun})`}
-                  onChange={() => {}}
-                  className="text-sm ml-3"
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 mt-5">
+      {loading && <BuilderLoadingOverlay message={statusMsg} />}
+      <div className="flex flex-col gap-4 mb-5">
         <p className="mb-1 flex items-center gap-2 p-4 text-sm text-[color-mix(in_oklab,var(--color-accent)_80%,black)] bg-[color-mix(in_oklab,var(--color-accent)_35%,white)] border border-[color-mix(in_oklab,var(--color-accent)_60%,white)] rounded-lg">
           <WarningIcon className="h-5 w-5 shrink-0" />
-          <span>Pastikan hasil CV sudah benar sebelum mengunduh.</span>
+          <span>Cek lagi sebelum mengunduh.</span>
         </p>
 
         <div className="flex flex-col md:flex-row gap-4">
@@ -602,7 +302,337 @@ export default function Step6Finalization({
             Download PDF
           </button>
         </div>
+      </div>
+      <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="font-bold text-lg">Preview CV</h3>
+          <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[color-mix(in_oklab,var(--color-primary)_25%,white)] bg-[color-mix(in_oklab,var(--color-primary)_8%,transparent)] px-3 py-1 text-xs font-medium">
+            <EditIcon className="h-3.5 w-3.5" />
+            <span>Klik teks untuk edit</span>
+          </div>
+        </div>
+        <div className="builder-document-preview bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border rounded-lg p-8 text-[14px] leading-relaxed">
+          {/* HEADER */}
+          <div className="text-center mb-4 space-y-1">
+            <h1 className="text-xl font-bold uppercase text-[var(--foreground)]/50">{cvData.Personal_Info.Nama}</h1>
+            <p className="text-sm text-[var(--foreground)]/70">
+              {[
+                cvData.Personal_Info.HP,
+                cvData.Personal_Info.Email,
+                cvData.Personal_Info.LinkedIn,
+                cvData.Personal_Info.Alamat,
+                cvData.Personal_Info.Portfolio
+              ]
+                .filter(Boolean)
+                .join(" | ")}
+            </p>
+          </div>
 
+          {/* SUMMARY */}
+          {cvData.Personal_Info.Summary && (
+            <div className="mb-4">
+              <h3 className="font-bold border-b border-black text-sm mb-1 text-[var(--foreground)]/50">Professional Summary</h3>
+              <EditableText
+                value={cvData.Personal_Info.Summary}
+                onChange={val =>
+                  setCvData({
+                    ...cvData,
+                    Personal_Info: { ...cvData.Personal_Info, Summary: val }
+                  })
+                }
+                className={`text-sm text-justify`}
+              />
+            </div>
+          )}
+
+          {/* EXPERIENCE */}
+          {cvData.Experience.some((_, index) => selectedContent.experience[index]) && (
+            <div className="mb-4">
+              <h3 className="font-bold border-b border-black text-xl mb-1 text-[var(--foreground)]/50">Work Experience</h3>
+              {cvData.Experience.map(
+                (exp, i) =>
+                  selectedContent.experience[i] && (
+                    <div key={i} className="mb-3">
+                      {/* Baris 1: Posisi | Perusahaan  (Tipe · Jenis) */}
+                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
+                        <EditableText
+                          value={exp.Posisi}
+                          onChange={val => {
+                            const updated = [...cvData.Experience];
+                            updated[i].Posisi = val;
+                            setCvData({ ...cvData, Experience: updated });
+                          }}
+                          className={`font-semibold text-sm`}
+                          inline
+                        />
+                        <span className="font-semibold text-sm shrink-0 text-[var(--foreground)]/40">|</span>
+                        <EditableText
+                          value={exp.Perusahaan}
+                          onChange={val => {
+                            const updated = [...cvData.Experience];
+                            updated[i].Perusahaan = val;
+                            setCvData({ ...cvData, Experience: updated });
+                          }}
+                          className={`font-semibold text-sm`}
+                          inline
+                        />
+                        {(exp.Tipe || exp.Jenis) && (
+                          <span className="text-sm text-[var(--foreground)]/45 shrink-0 ml-1">
+                            ({[exp.Tipe, exp.Jenis].filter(Boolean).join(" · ")})
+                          </span>
+                        )}
+                      </div>
+                      {/* Baris 2: Durasi */}
+                      <p className="text-sm text-[var(--foreground)]/50 mt-0.5">
+                        {formatDurationLabel(exp.Durasi, cvData.Language)}
+                      </p>
+                      {/* Baris 3: Deskripsi */}
+                      <EditableText
+                        value={formatAsBullets(exp.Deskripsi)}
+                        onChange={val => {
+                          const updated = [...cvData.Experience];
+                          updated[i].Deskripsi = parseFromBullets(val);
+                          setCvData({ ...cvData, Experience: updated });
+                        }}
+                        onKeyDown={handleBulletKeyDown(nextPlain => {
+                          const updated = [...cvData.Experience];
+                          updated[i].Deskripsi = nextPlain;
+                          setCvData({ ...cvData, Experience: updated });
+                        })}
+                        className={`text-sm mt-0.5`}
+                      />
+                    </div>
+                  )
+              )}
+            </div>
+          )}
+
+          {/* PROJECTS */}
+          {cvData.Projects.some((_, index) => selectedContent.projects[index]) && (
+            <div className="mb-4">
+              <h3 className="font-bold border-b border-black text-xl mb-1 text-[var(--foreground)]/50">Projects</h3>
+              {cvData.Projects.map(
+                (proj, i) =>
+                  selectedContent.projects[i] && (
+                    <div key={i} className="mb-3">
+                      {/* Baris 1: Nama Proyek | Role  (Tech Stack) */}
+                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
+                        <EditableText
+                          value={proj.Nama_Proyek}
+                          onChange={val => {
+                            const updated = [...cvData.Projects];
+                            updated[i].Nama_Proyek = val;
+                            setCvData({ ...cvData, Projects: updated });
+                          }}
+                          className={`font-semibold text-sm`}
+                          inline
+                        />
+                        {/* MODIFIKASI: Menurunkan warna separator | */}
+                        <span className="font-semibold text-sm shrink-0 text-[var(--foreground)]/40">|</span>
+                        <EditableText
+                          value={proj.Role}
+                          onChange={val => {
+                            const updated = [...cvData.Projects];
+                            updated[i].Role = val;
+                            setCvData({ ...cvData, Projects: updated });
+                          }}
+                          className={`font-semibold text-sm`}
+                          inline
+                        />
+                        {proj.Tech_Stack && (
+                          <span className="text-sm text-[var(--foreground)]/45 shrink-0 ml-1">
+                            ({proj.Tech_Stack})
+                          </span>
+                        )}
+                      </div>
+                      {/* Baris 2: Duration */}
+                      <p className="text-sm text-[var(--foreground)]/50 mt-0.5">
+                        {formatDurationLabel(proj.Duration, cvData.Language)}
+                      </p>
+                      {/* Baris 3: Deskripsi */}
+                      <EditableText
+                        value={formatAsBullets(proj.Deskripsi)}
+                        onChange={val => {
+                          const updated = [...cvData.Projects];
+                          updated[i].Deskripsi = parseFromBullets(val);
+                          setCvData({ ...cvData, Projects: updated });
+                        }}
+                        onKeyDown={handleBulletKeyDown(nextPlain => {
+                          const updated = [...cvData.Projects];
+                          updated[i].Deskripsi = nextPlain;
+                          setCvData({ ...cvData, Projects: updated });
+                        })}
+                        className={`text-sm mt-0.5`}
+                      />
+                    </div>
+                  )
+              )}
+            </div>
+          )}
+
+          {/* EDUCATION */}
+          {cvData.Education.some((_, index) => selectedContent.education[index]) && (
+            <div className="mb-4">
+              <h3 className="font-bold border-b border-black text-xl mb-1 text-[var(--foreground)]/50">Education</h3>
+              {cvData.Education.map(
+                (edu, i) =>
+                  selectedContent.education[i] && (
+                    <div key={i} className="mb-3">
+                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
+                        <EditableText
+                          value={edu.Institusi}
+                          onChange={val => {
+                            const updated = [...cvData.Education];
+                            updated[i].Institusi = val;
+                            setCvData({ ...cvData, Education: updated });
+                          }}
+                          className={`font-semibold text-sm`}
+                          inline
+                        />
+                        {edu.Tahun_Lulus && (
+                          <span className="font-semibold text-sm text-[var(--foreground)]/50">
+                            ({edu.Tahun_Lulus})
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-row items-baseline gap-1 content-start flex-wrap">
+                        <EditableText
+                          value={edu.Jurusan}
+                          onChange={val => {
+                            const updated = [...cvData.Education];
+                            updated[i].Jurusan = val;
+                            setCvData({ ...cvData, Education: updated });
+                          }}
+                          className={`text-sm italic`}
+                          inline
+                        />
+                        {edu.IPK && (
+                          <span className="text-sm text-[var(--foreground)]/50">
+                            | GPA: {edu.IPK}
+                          </span>
+                        )}
+                      </div>
+                      {edu.Matkul && (
+                        <div className="mt-1">
+                          <p className="text-sm font-semibold text-[var(--foreground)]/55">Related Course :</p>
+                          <EditableText
+                            value={edu.Matkul}
+                            onChange={val => {
+                              const updated = [...cvData.Education];
+                              updated[i].Matkul = val;
+                              setCvData({ ...cvData, Education: updated });
+                            }}
+                            className={`text-sm mt-0.5`}
+                          />
+                        </div>
+                      )}
+                      {edu.keterangan && (
+                        <div className="mt-1">
+                          <p className="text-sm font-semibold text-[var(--foreground)]/55">Description :</p>
+                          <EditableText
+                            value={formatAsBullets(edu.keterangan)}
+                            onChange={val => {
+                              const updated = [...cvData.Education];
+                              updated[i].keterangan = parseFromBullets(val);
+                              setCvData({ ...cvData, Education: updated });
+                            }}
+                            onKeyDown={handleBulletKeyDown(nextPlain => {
+                              const updated = [...cvData.Education];
+                              updated[i].keterangan = nextPlain;
+                              setCvData({ ...cvData, Education: updated });
+                            })}
+                            className={`text-sm mt-0.5`}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+              )}
+            </div>
+          )}
+
+        {/* SKILLS */}
+        {(selectedHardSkills.length > 0 || selectedSoftSkills.length > 0) && (
+          <div className="mb-4">
+            <h3 className="font-bold border-b border-black text-xl mb-1 text-[var(--foreground)]/50">Skills</h3>
+            
+            {/* Hard Skills Section */}
+            {selectedHardSkills.length > 0 && (
+              <div className="text-sm mt-1 flex flex-row items-baseline content-start flex-wrap gap-1">
+                {/* Label abu-abu */}
+                <span className="font-semibold text-[var(--foreground)]/55 shrink-0 mr-1">Hard Skills :</span>
+                
+                {/* Menggunakan EditableText untuk Hard Skills */}
+                <div className="w-full">
+                  <EditableText
+                    value={selectedHardSkills.map(({ skill }) => skill).join(", ")}
+                    onChange={(val) => {
+                      // 1. Pecah string berdasarkan koma dan bersihkan spasi murni menjadi string[]
+                      const updatedHard = val.split(",").map(s => s.trim());
+                      
+                      // 2. Langsung masukkan ke state utama tanpa struktur objek
+                      setCvData({ ...cvData, Skills_Hard: updatedHard });
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Soft Skills Section */}
+            {selectedSoftSkills.length > 0 && (
+              <div className="text-sm mt-1 flex flex-row items-baseline content-start flex-wrap gap-1">
+                {/* Label abu-abu */}
+                <span className="font-semibold text-[var(--foreground)]/55 shrink-0 mr-1">Soft Skills :</span>
+                
+                {/* Menggunakan EditableText untuk Soft Skills */}
+                <div className="w-full">
+                  <EditableText
+                    value={selectedSoftSkills.map(({ skill }) => skill).join(", ")}
+                    onChange={(val) => {
+                      // 1. Pecah string berdasarkan koma dan bersihkan spasi murni menjadi string[]
+                      const updatedSoft = val.split(",").map(s => s.trim());
+                      
+                      // 2. Langsung masukkan ke state utama tanpa struktur objek
+                      setCvData({ ...cvData, Skills_Soft: updatedSoft });
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+          {/* CERTIFICATIONS & AWARDS */}
+          {(selectedCertifications.length > 0 || selectedAwards.length > 0) && (
+            <div className="mb-4">
+              <h3 className="font-bold border-b border-black text-xl mb-1">Certifications & Awards</h3>
+              {selectedCertifications.map(({ certification, index }) => {
+                const yearRange = formatCertificateYearRange(certification.Tahun, certification.Masa_Berlaku);
+                return (
+                  <p
+                    key={`cert-${index}`}
+                    className="text-sm ml-3 text-[var(--foreground)]/70"
+                  >
+                    {`${certification.Nama} - ${certification.Penerbit}${yearRange ? ` (${yearRange})` : ""}`}
+                  </p>
+                );
+              })}
+              {selectedAwards.map(({ award, index }) => (
+                <p
+                  key={`award-${index}`}
+                  className="text-sm ml-3 text-[var(--foreground)]/70"
+                >
+                  {`Award: ${award.Nama_Award} - ${award.Pemberi} (${award.Tahun})`}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 mt-2">
         <button
           type="button"
           onClick={prevStep}

@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import axios from "axios";
 import { StepProps } from "@/types";
-import { useModal, CustomModal } from "./custommodal";
-import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon, LoadingTwotoneLoop } from "./icons";
+import { BuilderLoadingOverlay, useModal, CustomModal } from "./custommodal";
+import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon } from "./icons";
 import { buildDuplicateKey, filterUniqueNewItems, formatDuplicateMessage, isDuplicateItem } from "./duplicate-data";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -89,8 +89,8 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       }
 
       return status === "warning"
-        ? `Data Meragukan dengan kemiripan nama ${score}% terhadap referensi. Perlu konfirmasi.`
-        : `Data Tidak sesuai dengan kemiripan nama ${score}% terhadap referensi.`;
+        ? `Nama di dokumen sedikit berbeda. Perlu dicek.`
+        : `Nama di dokumen tidak sama dengan Profil.`;
     };
 
     const formatValidationBlock = (
@@ -100,9 +100,9 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
     ) => {
       return [
         `${fileName}`,
-        `Alasan Ditolak : ${statusMessage}`,
-        `Nama dalam Dokumen: "${extractedName}"`,
-        `Nama Profil: "${cvData.Personal_Info.Nama}"`,
+        `Catatan: ${statusMessage}`,
+        `Nama dokumen: "${extractedName}"`,
+        `Nama profil: "${cvData.Personal_Info.Nama}"`,
       ].join("\n");
     };
 
@@ -187,7 +187,6 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         (item) => getEducationDuplicateKey(item.entry)
       );
       const uniqueAcceptedEntries = uniqueAcceptedUploads.items.map((item) => item.entry);
-      const uniqueAcceptedDocumentNames = uniqueAcceptedUploads.items.map((item) => item.documentName);
       const warningFilterBase = [...cvData.Education, ...uniqueAcceptedEntries];
       const uniqueWarningEntries = filterUniqueNewItems(
         warningFilterBase,
@@ -210,18 +209,18 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       }
 
       const buildDetailLines = (savedWarningCount: number, includeWarningList: boolean) => {
-        const lines: string[] = [`${savedCount + savedWarningCount} file disimpan.`];
+        const lines: string[] = [`Disimpan: ${savedCount + savedWarningCount} file.`];
 
         if (savedCount > 0) {
-          lines.push(...uniqueAcceptedDocumentNames.map((documentName) => `Valid, nama pada dokumen sesuai dengan profil`));
+          lines.push(`Nama dokumen cocok dengan profil.`);
         }
         if (savedWarningCount > 0) {
-          lines.push(`Meragukan untuk disimpan: ${savedWarningCount}.`);
+          lines.push(`Disimpan setelah konfirmasi: ${savedWarningCount}.`);
         }
         if (warningCandidates.length > 0 && includeWarningList) {
           lines.push(
             "",
-            `Perlu konfirmasi (${warningCandidates.length}):`,
+            `Perlu kamu cek (${warningCandidates.length}):`,
             ...warningCandidates.map(
               (item) => {
                 return formatValidationBlock(item.fileName, item.message, item.extractedName);
@@ -230,19 +229,19 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           );
         }
         if (warningCandidates.length > 0 && !includeWarningList) {
-          lines.push(`- Dokumen meragukan tidak disimpan: ${warningCandidates.length}.`);
+          lines.push(`Dokumen yang meragukan tidak disimpan: ${warningCandidates.length}.`);
         }
         if (invalidCount > 0) {
-          lines.push("", `Dokumen ditolak (${invalidCount}):`, ...invalidDetails);
+          lines.push("", `Ditolak (${invalidCount}):`, ...invalidDetails);
         }
         if (oversizedDetails.length > 0) {
-          lines.push("", `Dokumen ditolak ukuran > 5MB (${oversizedDetails.length}):`, ...oversizedDetails);
+          lines.push("", `Ukuran di atas 5 MB (${oversizedDetails.length}):`, ...oversizedDetails);
         }
         if (processingFailedCount > 0) {
-          lines.push("", `Dokumen gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
+          lines.push("", `Gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
         }
         if (duplicateCount > 0) {
-          lines.push("", `Data duplikat tidak disimpan (${duplicateCount}):`, ...duplicateDetails);
+          lines.push("", `Duplikat dilewati (${duplicateCount}):`, ...duplicateDetails);
         }
         return lines.join("\n");
       };
@@ -255,7 +254,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         ];
 
         showConfirm(
-          "Konfirmasi Dokumen Meragukan",
+          "Cek dokumen ini",
           warningMessageLines.join("\n"),
           () => {
             setCvData((prev) => ({
@@ -268,7 +267,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             if (savedCount > 0) {
               showSuccess("Upload selesai", buildDetailLines(0, false));
             } else {
-              showAlert("Upload selesai dengan penolakan", buildDetailLines(0, false));
+        showAlert("Upload selesai", buildDetailLines(0, false));
             }
           }
         );
@@ -286,13 +285,13 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
   // ================= ADD / EDIT =================
   const addManual = () => {
     if (!manual.uni || !manual.jur || !manual.thn) {
-      return showAlert("Perhatian", "Institusi, Jurusan, Tahun wajib diisi!");
+      return showAlert("Lengkapi pendidikan", "Isi institusi, jurusan, dan tahun lulus.");
     }
     const ipkValue = (manual.ipk ?? "").toString().trim();
     if (ipkValue) {
       const ipkNumber = Number(ipkValue);
       if (Number.isNaN(ipkNumber) || ipkNumber < 0 || ipkNumber > 4) {
-        return showAlert("Perhatian", "IPK harus berupa angka antara 0.00 sampai 4.00.");
+        return showAlert("IPK belum valid", "Gunakan angka 0.00 sampai 4.00.");
       }
     }
 
@@ -347,7 +346,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
   };
 
   const handleDelete = (index: number) => {
-    showConfirm("Hapus", "Yakin hapus?", () => {
+    showConfirm("Hapus pendidikan", "Data ini akan dihapus dari CV.", () => {
       setCvData(prev => ({
         ...prev,
         Education: prev.Education.filter((_, i) => i !== index)
@@ -368,7 +367,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
                 : "bg-[color-mix(in_oklab,var(--color-surface)_88%,white)] text-[color-mix(in_oklab,var(--foreground)_92%,white)] hover:bg-[color-mix(in_oklab,var(--color-soft)_45%,white)]"
             }`}
           >
-            {tab === "upload" ? "Upload File" : tab === "manual" ? "Manual Input" : ""}
+            {tab === "upload" ? "Upload" : tab === "manual" ? "Manual" : ""}
           </button>
         ))}
         </div>
@@ -385,23 +384,9 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               accept=".pdf,.jpg,.jpeg,.png" 
           />
           <div className="flex flex-col items-center">
-              {loading ? (
-                <div className="flex flex-col items-center">
-                  <LoadingTwotoneLoop className="mb-3 h-10 w-10 text-[var(--color-primary)] animate-spin"/>
-                  <p className="font-bold text-[var(--color-primary)] animate-pulse">
-                    Sedang membaca & memvalidasi...
-                  </p>
-                  <p className="mt-1 text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] animate-pulse">
-                    Mohon tunggu sebentar
-                  </p>
-                </div>                    
-              ) : (
-                  <>
-                    <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
-                    <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Klik atau geser file Ijazah ke sini</p>
-                    <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG (Max 5MB per file)</p>
-                  </>
-              )}
+            <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
+            <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Upload ijazah</p>
+            <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG. Maks. 5 MB per file.</p>
           </div>
         </div>
       )}
@@ -468,7 +453,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               max={4}
               step="0.01"
               className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
-              placeholder="Range 0.00 - 4.00"
+              placeholder="0.00 - 4.00"
               value={manual.ipk || ""}
               onChange={e => setManual({ ...manual, ipk: e.target.value })}
             />
@@ -488,17 +473,17 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           </div>
 
 
-          <div className="md:col-span-2">
+          {/* <div className="md:col-span-2">
             <label className="block text-sm font-bold mb-1">
               Keterangan
             </label>
             <textarea
               className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] outline-none text-[color-mix(in_oklab,var(--foreground)_55%,white)]"
-              placeholder="Achievement, Organization, etc"
+              placeholder="Prestasi, organisasi, atau catatan singkat"
               value={manual.ket || ""}
               onChange={e => setManual({ ...manual, ket: e.target.value })}
             />
-          </div>
+          </div> */}
 
           {/* INDICATOR EDIT */}
           {editingIndex !== null && (
@@ -514,14 +499,14 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
                 : "bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)]"
             }`}
           >
-            {editingIndex !== null ? "Update Pendidikan" : "Tambah Pendidikan"}
+            {editingIndex !== null ? "Simpan perubahan" : "Tambah pendidikan"}
           </button>
         </div>
       )}
 
       <div className="builder-list-panel mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
         <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-4 flex items-center gap-2">
-          Daftar Pendidikan <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full text-[var(--foreground)]">{cvData.Education.length}</span>
+          Pendidikan <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full text-[var(--foreground)]">{cvData.Education.length}</span>
         </h3>
 
         {cvData.Education.length === 0 && (
@@ -584,18 +569,19 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
           className="cursor-pointer px-6 py-2 bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] rounded-lg font-bold hover:bg-[color-mix(in_oklab,var(--color-soft)_75%,white)] flex items-center gap-2"
         >
           <ArrowBackwardIcon className="h-4 w-4" />
-          Back
+          Kembali
         </button>
 
         <button
           onClick={nextStep}
           className="cursor-pointer px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg font-bold hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] flex items-center gap-2"
         >
-          Next
+          Lanjut
           <ArrowForwardIcon className="h-4 w-4" />
         </button>
       </div>
 
+      {loading && <BuilderLoadingOverlay message="Membaca ijazah..." />}
       <CustomModal {...modalProps} />
     </div>
   );

@@ -18,6 +18,8 @@ export default function EditableText({
   const safeValue = typeof value === "string" ? value : "";
 
   if (inline) {
+    const handleInputKeyDown = onKeyDown as KeyboardEventHandler<HTMLInputElement> | undefined;
+
     return (
       <span className="relative inline-block align-baseline">
         {/* Tambahin spasi kosong ("  ") di belakang teks buat ngasih ruang napas kursor dan huruf terakhir */}
@@ -30,16 +32,15 @@ export default function EditableText({
           type="text"
           value={safeValue}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown as any}
+          onKeyDown={handleInputKeyDown}
+          // Gabungkan kelas kontras ke input
           className={`absolute inset-0 w-full h-full outline-none ${className}`}
           style={{ 
-            background: "transparent", 
             padding: 0, 
             margin: 0, 
             border: "none", 
             minHeight: "0",
             boxShadow: "none",
-            color: "inherit"
           }}
         />
       </span>
@@ -47,23 +48,24 @@ export default function EditableText({
   }
 
   // Multiline
+  const handleTextareaKeyDown = onKeyDown as KeyboardEventHandler<HTMLTextAreaElement> | undefined;
+
   return (
     <textarea
       value={safeValue}
       onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onKeyDown as any}
+      onKeyDown={handleTextareaKeyDown}
       rows={1}
+      // Gabungkan kelas kontras ke textarea
       className={`w-full outline-none resize-none overflow-hidden leading-tight ${className}`}
       style={{ 
         height: "auto", 
         fieldSizing: "content",
-        background: "transparent",
-        padding: 0,
+        padding: "4px 6px", // Diberikan padding ekstra agar background membungkus teks dengan rapi
         margin: 0,
         border: "none",
         minHeight: "0",
         boxShadow: "none",
-        color: "inherit"
       }}
     />
   );

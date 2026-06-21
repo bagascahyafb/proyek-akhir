@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import axios from "axios";
 import { StepProps } from "@/types";
-import { useModal, CustomModal } from "./custommodal";
-import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon, LoadingTwotoneLoop } from "./icons";
+import { BuilderLoadingOverlay, useModal, CustomModal } from "./custommodal";
+import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon } from "./icons";
 import {
   buildDuplicateKey,
   filterUniqueNewItems,
@@ -108,7 +108,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     }
 
     if (!cvData.Personal_Info.Nama) {
-      showAlert("Perhatian", "Mohon isi Nama Lengkap dulu di Step 1.");
+      showAlert("Isi nama dulu", "Nama lengkap diperlukan untuk cek dokumen.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -121,7 +121,6 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     const processingFailedDetails: string[] = [];
 
     const acceptedResults: UploadResult[] = [];
-    const acceptedDocumentNames: string[] = [];
     const warningCandidates: WarningCandidate[] = [];
     let duplicateCount = 0;
     const duplicateDetails: string[] = [];
@@ -152,9 +151,9 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     ) => {
       return [
         `${fileName}`,
-        `Alasan Ditolak : ${statusMessage}`,
-        `Nama Dokumen : "${extractedName}"`,
-        `Nama Profil : "${cvData.Personal_Info.Nama}"`,
+        `Catatan: ${statusMessage}`,
+        `Nama dokumen: "${extractedName}"`,
+        `Nama profil: "${cvData.Personal_Info.Nama}"`,
       ].join("\n");
     };
 
@@ -314,7 +313,6 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           }
 
           acceptedResults.push(result);
-          acceptedDocumentNames.push(formatDocumentName(validation?.extracted_name));
           savedCount += 1;
         } catch (error) {
           processingFailedCount += 1;
@@ -343,37 +341,37 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       applyUploadResults(uniqueAccepted.uniqueResults);
 
       const buildDetailLines = (savedWarningCount: number, includeWarningList: boolean) => {
-        const lines: string[] = [`${savedCount + savedWarningCount} file disimpan ke kategori ${uploadCategory}.`];
+        const lines: string[] = [`Disimpan: ${savedCount + savedWarningCount} file.`];
 
         if (savedCount > 0) {
-          lines.push(...acceptedDocumentNames.map((documentName) => `- Valid pada dokumen ${documentName}`));
+          lines.push(`Kategori: ${uploadCategory}.`);
         }
         if (savedWarningCount > 0) {
-          lines.push(`- Meragukan disimpan: ${savedWarningCount} (skor 50-70%).`);
+          lines.push(`Disimpan setelah konfirmasi: ${savedWarningCount}.`);
         }
         if (warningCandidates.length > 0 && includeWarningList) {
           lines.push(
             "",
-            `Perlu konfirmasi (${warningCandidates.length}):`,
+            `Perlu kamu cek (${warningCandidates.length}):`,
             ...warningCandidates.map((item) => {
               return formatValidationBlock(item.fileName, item.message, item.extractedName);
             })
           );
         }
         if (warningCandidates.length > 0 && !includeWarningList) {
-          lines.push(`- Dokumen meragukan tidak disimpan: ${warningCandidates.length}.`);
+          lines.push(`Dokumen yang meragukan tidak disimpan: ${warningCandidates.length}.`);
         }
         if (invalidCount > 0) {
-          lines.push("", `Dokumen ditolak (${invalidCount}):`, ...invalidDetails);
+          lines.push("", `Ditolak (${invalidCount}):`, ...invalidDetails);
         }
         if (oversizedDetails.length > 0) {
-          lines.push("", `Dokumen ditolak ukuran (${oversizedDetails.length}):`, ...oversizedDetails);
+          lines.push("", `Ukuran di atas 5 MB (${oversizedDetails.length}):`, ...oversizedDetails);
         }
         if (processingFailedCount > 0) {
-          lines.push("", `Dokumen gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
+          lines.push("", `Gagal diproses (${processingFailedCount}):`, ...processingFailedDetails);
         }
         if (duplicateCount > 0) {
-          lines.push("", `Data duplikat tidak disimpan (${duplicateCount}):`, ...duplicateDetails.map((item) => `- ${item}`));
+          lines.push("", `Duplikat dilewati (${duplicateCount}):`, ...duplicateDetails.map((item) => `- ${item}`));
         }
         return lines.join("\n");
       };
@@ -386,7 +384,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
         ];
 
         showConfirm(
-          "Konfirmasi Dokumen Meragukan",
+          "Cek dokumen ini",
           warningMessageLines.join("\n"),
           () => {
             applyUploadResults(uniqueWarningResults);
@@ -396,7 +394,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             if (savedCount > 0) {
               showSuccess("Upload selesai", buildDetailLines(0, false));
             } else {
-              showAlert("Upload selesai dengan penolakan", buildDetailLines(0, false));
+              showAlert("Upload selesai", buildDetailLines(0, false));
             }
           }
         );
@@ -419,19 +417,19 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     const masaBerlaku = manualForm.masaBerlaku.trim();
 
     if (manualForm.kategori === "Keahlian" && (!nama || !penerbit || !tahun)) {
-      return showAlert("Perhatian", "Judul Sertifikat Keahlian, Penerbit, dan Tahun Terbit wajib diisi sebelum disimpan.");
+      return showAlert("Lengkapi sertifikat", "Isi judul, penerbit, dan tahun.");
     }
 
     if (!isFourDigitYear(tahun)) {
-      return showAlert("Perhatian", "Tahun Terbit harus berupa angka 4 digit.");
+      return showAlert("Tahun belum valid", "Gunakan 4 digit, misalnya 2025.");
     }
 
     if (masaBerlaku && !isFourDigitYear(masaBerlaku)) {
-      return showAlert("Perhatian", "Tahun Kadaluarsa harus berupa angka 4 digit.");
+      return showAlert("Tahun belum valid", "Gunakan 4 digit, misalnya 2026.");
     }
 
     if (manualForm.kategori === "Kompetisi" && (!nama || !judulKompetisi || !penerbit || !tahun)) {
-      return showAlert("Perhatian", "Isi Judul Penghargaan, Kompetisi, Penerbit, dan Tahun terlebih dahulu!");
+      return showAlert("Lengkapi penghargaan", "Isi penghargaan, kompetisi, penyelenggara, dan tahun.");
     }
 
     if (manualForm.kategori === "Kompetisi") {
@@ -569,7 +567,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               activeTab === tab ? "bg-[var(--color-primary)] text-white shadow-lg" : "bg-[color-mix(in_oklab,var(--color-surface)_88%,white)] text-[color-mix(in_oklab,var(--foreground)_92%,white)] hover:bg-[color-mix(in_oklab,var(--color-soft)_45%,white)]"
             }`}
           >
-            {tab === "upload" ? "Upload File" : "Manual Input"}
+            {tab === "upload" ? "Upload" : "Manual"}
           </button>
         ))}
       </div>
@@ -577,7 +575,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       {activeTab === "upload" ? (
         <div className="space-y-4">
           <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] p-4 rounded-xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
-            <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-3 text-sm">Jenis dokumen yang akan diupload:</p>
+            <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-3 text-sm">Pilih jenis dokumen</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className={`flex-1 cursor-pointer border p-3 rounded-lg flex items-center gap-2 transition ${uploadCategory === "Keahlian" ? "bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] border-[var(--color-primary)] ring-2 ring-[color-mix(in_oklab,var(--color-accent)_55%,white)]" : "bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] border-[color-mix(in_oklab,var(--color-soft)_55%,white)]"}`}>
                 <input
@@ -590,7 +588,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
                 />
                 <div>
                   <span className="block font-bold text-sm">Sertifikat Keahlian</span>
-                  <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">Contoh: Course, Bootcamp</span>
+                  <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">Course, bootcamp, lisensi</span>
                 </div>
               </label>
 
@@ -605,7 +603,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
                 />
                 <div>
                   <span className="block font-bold text-sm">Penghargaan / Lomba</span>
-                  <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">Contoh: Juara 1, Best Capstone</span>
+                  <span className="text-xs text-[color-mix(in_oklab,var(--foreground)_65%,white)]">Juara, finalis, best project</span>
                 </div>
               </label>
             </div>
@@ -622,26 +620,12 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
             <div className="flex flex-col items-center">
-                {loading ? (
-                  <div className="flex flex-col items-center">
-                    <LoadingTwotoneLoop className="mb-3 h-10 w-10 text-[var(--color-primary)] animate-spin"/>
-                    <p className="font-bold text-[var(--color-primary)] animate-pulse">
-                      Sedang membaca & memvalidasi...
-                    </p>
-                    <p className="mt-1 text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] animate-pulse">
-                      Mohon tunggu sebentar
-                    </p>
-                  </div>                    
-                ) : (
-                    <>
-                      <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
-                      <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Klik atau geser file Ijazah ke sini</p>
-                      <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG (Max 5MB per file)</p>
-                      <p className="text-xs font-semibold text-[var(--color-primary)] mt-2 bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] px-2 py-1 rounded">
-                        Masuk bagian {uploadCategory === "Keahlian" ? "Sertifikat Keahlian" : "Penghargaan"}
-                      </p>
-                    </>
-                )}
+              <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
+              <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Upload dokumen</p>
+              <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG. Maks. 5 MB per file.</p>
+              <p className="text-xs font-semibold text-[var(--color-primary)] mt-2 bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] px-2 py-1 rounded">
+                Masuk ke {uploadCategory === "Keahlian" ? "Sertifikat" : "Penghargaan"}
+              </p>
             </div>
           </div>
         </div>
@@ -736,7 +720,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               editingState !== null ? "bg-[var(--color-accent)] hover:bg-[color-mix(in_oklab,var(--color-accent)_82%,black)]" : "bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)]"
             }`}
           >
-            {editingState !== null ? "Update Data" : "Tambahkan Manual"}
+            {editingState !== null ? "Simpan perubahan" : "Tambah data"}
           </button>
         </div>
       )}
@@ -803,17 +787,18 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           className="cursor-pointer px-6 py-2 rounded-lg font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)] bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] hover:bg-[color-mix(in_oklab,var(--color-soft)_75%,white)] transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2"
         >
           <ArrowBackwardIcon className="h-4 w-4" />
-          Back
+          Kembali
         </button>
         <button
           type="button"
           onClick={nextStep}
           className="cursor-pointer px-6 py-2 rounded-lg font-bold text-white bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] transition-all transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg flex items-center gap-2"
         >
-          Next
+          Lanjut
           <ArrowForwardIcon className="h-4 w-4" />
         </button>
       </div>
+      {loading && <BuilderLoadingOverlay message="Membaca dokumen..." />}
       <CustomModal {...modalProps} />
     </div>
   );

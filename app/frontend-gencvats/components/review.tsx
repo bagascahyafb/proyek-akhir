@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { SelectedCVContent, StepProps } from "@/types";
-import { useModal, CustomModal } from "./custommodal";
+import { BuilderLoadingOverlay, useModal, CustomModal } from "./custommodal";
 import { ArrowBackwardIcon, AutoEnhanceIcon, ArrowForwardIcon } from "./icons";
 
 type ReviewSelectionProps = StepProps & {
@@ -73,11 +73,11 @@ export default function Step5Review({
 
   const handleEnhance = async () => {
     if (!cvData.Personal_Info.Nama) {
-      return showAlert("Perhatian", "Data kosong! Isi Nama Lengkap dulu di Step 1.");
+      return showAlert("Isi nama dulu", "Nama lengkap diperlukan sebelum AI memoles CV.");
     }
 
     setLoading(true);
-    setStatusMsg("Sedang menghubungi AI untuk memoles CV Anda... (Bisa memakan waktu 10-20 detik)");
+    setStatusMsg("AI sedang memoles CV...");
 
     try {
       const res = await axios.post(`${apiUrl}/enhance-cv`, cvData, {
@@ -85,12 +85,12 @@ export default function Step5Review({
       });
       setCvData(res.data);
       showSuccess(
-        "Enhance selesai",
-        "Sistem berhasil memoles isi CV Anda. Bahasa sudah disesuaikan dan kalimatnya sudah diperbaiki."
+        "CV sudah dipoles",
+        "Cek lagi hasilnya sebelum lanjut."
       );
     } catch (error) {
       console.error(error);
-      showAlert("Error", "Gagal menghubungi server AI. Pastikan backend Python sedang berjalan.");
+      showAlert("AI belum bisa dipakai", "Pastikan backend sedang berjalan, lalu coba lagi.");
     } finally {
       setLoading(false);
       setStatusMsg("");
@@ -107,20 +107,13 @@ export default function Step5Review({
 
   return (
     <div>
-      {loading && (
-        <div className="absolute inset-0 bg-[color-mix(in_oklab,var(--color-surface)_92%,white)] z-50 flex flex-col items-center justify-center p-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[var(--color-primary)] mb-4"></div>
-          <p className="font-bold text-lg text-[color-mix(in_oklab,var(--foreground)_90%,black)] animate-pulse text-center">
-            {statusMsg}
-          </p>
-        </div>
-      )}
+      {loading && <BuilderLoadingOverlay message={statusMsg} />}
       <div className="space-y-8">
         <div className="space-y-6">
           {/* LANGUAGE */}
           <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
             <label className="block font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-3 text-lg">
-              Pilih Bahasa CV
+              Bahasa CV
             </label>
             <select
               value={cvData.Language}
@@ -135,7 +128,7 @@ export default function Step5Review({
           {/* SUMMARY */}
           <div className="builder-inner-panel bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] border rounded-2xl shadow p-6">
             <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-3 text-lg">
-              Pembuatan Summary
+              Summary
             </h3>
             <textarea
               className="w-full border p-4 rounded-lg bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] h-32 text-sm focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
@@ -146,7 +139,7 @@ export default function Step5Review({
                   Personal_Info: { ...cvData.Personal_Info, Summary: e.target.value }
                 })
               }
-              placeholder="Summary akan otomatis diisi oleh AI saat Anda klik tombol Enhance..."
+              placeholder="Tulis sendiri atau biarkan AI bantu poles."
             />
             <button
               type="button"
@@ -154,7 +147,7 @@ export default function Step5Review({
               className="cursor-pointer w-full bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 mt-4"
             >
               <AutoEnhanceIcon className="h-5 w-5" />
-              Enhance with AI
+              Poles dengan AI
             </button>
           </div>
 
@@ -162,10 +155,10 @@ export default function Step5Review({
           <div className="builder-list-panel bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-6 rounded-xl border h-full">
             <div>
               <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-2">
-                Preview Summary (About Me)
+                Isi yang masuk CV
               </h3>
               <p className="text-sm text-[color-mix(in_oklab,var(--foreground)_65%,white)]">
-                User bisa memilih item tertentu. Yang dicentang akan masuk ke CV.
+                Centang item yang ingin ditampilkan.
               </p>
             </div>
 
@@ -276,14 +269,14 @@ export default function Step5Review({
             className="cursor-pointer px-6 py-2 rounded-lg font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)] bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] hover:bg-[color-mix(in_oklab,var(--color-soft)_75%,white)] transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2"
           >
             <ArrowBackwardIcon className="h-4 w-4" />
-            Back
+            Kembali
           </button>
           <button
             type="button"
             onClick={nextStep}
             className="cursor-pointer px-6 py-2 rounded-lg font-bold text-white bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] transition-all transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg flex items-center gap-2"
           >
-            Next
+            Lanjut
             <ArrowForwardIcon className="h-4 w-4" />
           </button>
         </div>

@@ -1,5 +1,9 @@
+"use client";
+
 // components/CustomModal.tsx
 import { useState } from "react";
+import { createPortal } from "react-dom";
+import { LoadingTwotoneLoop } from "./icons";
 
 // --- 1. CUSTOM HOOK UNTUK LOGIC MODAL ---
 export function useModal() {
@@ -48,7 +52,7 @@ interface ModalProps {
 }
 
 export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel, onClose }: ModalProps) {
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const modalTone = {
     alert: {
@@ -77,8 +81,8 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel,
     },
   }[type];
 
-  return (
-    <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 transition-opacity">
       <div className="max-h-[min(90vh,620px)] w-full max-w-sm overflow-y-auto rounded-2xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)] bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-6 shadow-[0_18px_40px_rgba(2,6,23,0.28)] animate-fade-in-up">
         <div className={`mb-4 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-wide ${modalTone.badgeClass}`}>
           {modalTone.badge}
@@ -126,11 +130,26 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel,
             }}
             className={`cursor-pointer rounded-xl px-5 py-2.5 font-bold transition ${modalTone.actionClass}`}
           >
-            {type === "confirm" ? "Ya, Lanjutkan" : type === "success" ? "Selesai" : "OK Mengerti"}
+            {type === "confirm" ? "Ya, lanjut" : type === "success" ? "Selesai" : "Mengerti"}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
+  );
+}
+
+export function BuilderLoadingOverlay({ message }: { message: string }) {
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)] bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-6 text-center shadow-[0_18px_40px_rgba(2,6,23,0.28)]">
+        <LoadingTwotoneLoop className="mx-auto mb-4 h-12 w-12 animate-spin text-[var(--color-primary)]" />
+        <p className="text-base font-bold text-[var(--foreground)]">{message}</p>
+      </div>
+    </div>,
+    document.body
   );
 }
 

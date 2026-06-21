@@ -1,26 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #1e293b;
-
-  --color-surface: #ffffff;
-  --color-surface-container: #f1f5f9;
-
-  --color-soft: #d6dee8;
-
-  --color-accent: #7c3aed;
-  --color-primary: #2563eb;
-
+  --background: #f0f4f8; 
+  --foreground: #0f172a; 
+  --color-surface: #ffffff; 
+  --color-surface-container: #e2ebf5; 
+  --color-soft: #cbd5e1; 
+  --color-accent: #6d28d9;  
+  --color-primary: #1d4ed8; 
   --color-muted-blue: #dbeafe;
-
   --color-on-brand: #ffffff;
 
   --shadow-card:
-    0 10px 30px rgba(15, 23, 42, 0.05);
-
+    0 10px 30px rgba(15, 32, 66, 0.04);
   --shadow-card-hover:
-    0 20px 50px rgba(15, 23, 42, 0.12);
+    0 20px 50px rgba(15, 32, 66, 0.09);
 }
 
 .dark {

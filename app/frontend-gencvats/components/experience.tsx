@@ -287,15 +287,15 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
   // ================= EXPERIENCE =================
   const addExp = () => {
     if (!expForm.pos || !expForm.comp || !expForm.type || !expForm.workMode || !expForm.startDate || !expForm.desc) {
-      showAlert("Perhatian", "Posisi, Perusahaan, Tipe Pekerjaan, Jenis Pekerjaan, Tanggal Mulai, serta Deskripsi wajib diisi!");
+      showAlert("Lengkapi pengalaman", "Isi posisi, perusahaan, tipe, lokasi kerja, tanggal mulai, dan deskripsi.");
       return;
     }
     if (!expForm.isCurrent && !expForm.endDate) {
-      showAlert("Perhatian", "Isi Tanggal Selesai atau centang 'Masih bekerja di sini'.");
+      showAlert("Tanggal selesai kosong", "Isi tanggal selesai atau centang masih bekerja di sini.");
       return;
     }
     if (!expForm.isCurrent && expForm.endDate < expForm.startDate) {
-      showAlert("Perhatian", "Tanggal selesai tidak boleh lebih awal dari Tanggal mulai.");
+      showAlert("Tanggal belum valid", "Tanggal selesai tidak boleh lebih awal dari tanggal mulai.");
       return;
     }
 
@@ -359,7 +359,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
   };
 
   const handleDeleteExp = (idx: number) => {
-    showConfirm("Konfirmasi Hapus", "Hapus pengalaman ini?", () => {
+    showConfirm("Hapus pengalaman", "Data ini akan dihapus dari CV.", () => {
       const nextExperience = cvData.Experience.filter((_, i) => i !== idx);
       const derivedSkills = extractSkills(nextExperience, cvData.Projects);
       setHardSkillsText(derivedSkills.Skills_Hard.join(", "));
@@ -372,31 +372,24 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
     });
   };
 
-  const updateInfo = (field: keyof typeof cvData.Personal_Info, value: string) => {
-    setCvData((prev) => ({
-      ...prev,
-      Personal_Info: { ...prev.Personal_Info, [field]: value },
-    }));
-  };
-
   // ================= PROJECT =================
   const addProj = () => {
     const portfolioRaw = projForm.link.trim();
 
     if (!projForm.name || !projForm.stack || !projForm.desc) {
-      showAlert("Perhatian", "Nama proyek, Tech Stack, dan Deskripsi wajib diisi!");
+      showAlert("Lengkapi proyek", "Isi nama proyek, tech stack, dan deskripsi.");
       return;
     }
     if (!projForm.startDate) {
-      showAlert("Perhatian", "Tanggal mulai proyek wajib diisi!");
+      showAlert("Tanggal mulai kosong", "Pilih tanggal mulai proyek.");
       return;
     }
     if (!projForm.isCurrent && !projForm.endDate) {
-      showAlert("Perhatian", "Isi Tanggal selesai proyek atau centang proyek masih berjalan.");
+      showAlert("Tanggal selesai kosong", "Isi tanggal selesai atau centang proyek masih berjalan.");
       return;
     }
     if (!projForm.isCurrent && projForm.endDate < projForm.startDate) {
-      showAlert("Perhatian", "Tanggal selesai proyek tidak boleh lebih awal dari Tanggal mulai.");
+      showAlert("Tanggal belum valid", "Tanggal selesai tidak boleh lebih awal dari tanggal mulai.");
       return;
     }
 
@@ -405,7 +398,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       try {
         portfolioUrl = normalizeUrl(portfolioRaw);
       } catch {
-        return showAlert("GitHub/Portofolio", "Format link GitHub/Portofolio tidak valid.");
+        return showAlert("Link portofolio belum valid", "Gunakan link GitHub atau portofolio yang bisa dibuka.");
       }
 
       setProjForm(prev => ({
@@ -422,7 +415,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
       } catch {
         return showAlert(
           "GitHub/Portofolio",
-          "Format link GitHub/Portofolio tidak valid."
+          "Gunakan link GitHub atau portofolio yang bisa dibuka."
         );
       }
     }
@@ -487,7 +480,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
   };
 
   const handleDeleteProj = (i: number) => {
-    showConfirm("Hapus", "Yakin hapus proyek?", () => {
+    showConfirm("Hapus proyek", "Data ini akan dihapus dari CV.", () => {
       const nextProjects = cvData.Projects.filter((_, idx) => idx !== i);
       const derivedSkills = extractSkills(cvData.Experience, nextProjects);
       setHardSkillsText(derivedSkills.Skills_Hard.join(", "));
@@ -535,7 +528,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 : "bg-[color-mix(in_oklab,var(--color-surface)_88%,white)] text-[color-mix(in_oklab,var(--foreground)_92%,white)] hover:bg-[color-mix(in_oklab,var(--color-soft)_45%,white)]"
             }`}
           >
-            {tab === "exp" ? "Work Experience" : tab === "proj" ? "Projects" : "Skills"}
+            {tab === "exp" ? "Pengalaman" : tab === "proj" ? "Proyek" : "Skill"}
           </button>
         ))}
       </div>
@@ -577,7 +570,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               <ModernDateField
                 value={expForm.startDate}
                 onChange={(value) => setExpForm({ ...expForm, startDate: value })}
-                placeholder="Pilih Tanggal mulai"
+                placeholder="Pilih tanggal mulai"
                 language={cvData.Language}
               />
             </div>
@@ -591,16 +584,41 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 min={expForm.startDate || undefined}
                 value={expForm.endDate}
                 onChange={(value) => setExpForm({ ...expForm, endDate: value })}
-                placeholder={expForm.isCurrent ? "Masih bekerja di sini" : "Pilih Tanggal selesai"}
+                placeholder={expForm.isCurrent ? "Masih bekerja di sini" : "Pilih tanggal selesai"}
                 language={cvData.Language}
               />
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-[var(--foreground)] mt-2">
+                {/* Checkbox asli disembunyikan total secara visual */}
                 <input
                   type="checkbox"
                   checked={expForm.isCurrent}
                   onChange={(e) => setExpForm({ ...expForm, isCurrent: e.target.checked, endDate: e.target.checked ? "" : expForm.endDate })}
+                  // Ditambahkan !bg-transparent dan !appearance-none untuk membunuh paksaan dari globals.css
+                  className="sr-only peer !bg-transparent !appearance-none"
                 />
-                Masih bekerja di sini
+                
+                {/* Kotak Custom Tiruan - Dikontrol penuh lewat Tailwind dan CSS variables */}
+                <div className="
+                  flex h-4 w-4 shrink-0 items-center justify-center rounded border 
+                  border-[color-mix(in_oklab,var(--color-soft)_80%,white)] 
+                  bg-[color-mix(in_oklab,var(--color-surface-container)_90%,white)] 
+                  transition-all duration-200
+                  peer-focus:ring-2 peer-focus:ring-[var(--color-primary)]/40
+                  peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary)]
+                ">
+                  {/* Ikon centang internal murni SVG */}
+                  <svg
+                    className="h-2.5 w-2.5 text-white opacity-0 transition-opacity duration-200 peer-checked:opacity-100"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth="3.5"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                
+                <span>Masih bekerja di sini</span>
               </label>
             </div>
 
@@ -648,7 +666,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               <textarea
                 ref={expDescRef}
                 className={`${inputClass} resize-none overflow-hidden`}
-                placeholder="Menaikan efisiensi dengan membuat dashboard interaktif menggunakan Tableau, yang mengurangi waktu analisis sebesar 30%"
+                placeholder="Contoh: Membuat dashboard Tableau yang memangkas waktu analisis 30%."
                 value={expForm.desc}
                 onChange={e => {
                   setExpForm({ ...expForm, desc: e.target.value });
@@ -673,14 +691,14 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                   : "bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)]"
               }`}
             >
-              {editingExpIndex !== null ? "Update Pengalaman" : "Tambah Pengalaman"}
+              {editingExpIndex !== null ? "Simpan perubahan" : "Tambah pengalaman"}
             </button>
           </div>
 
           {/* LIST */}
           <div className="builder-list-panel mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
             <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-4 flex items-center gap-2">
-              Daftar Pengalaman
+              Pengalaman
               <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full">
                 {cvData.Experience.length}
               </span>
@@ -741,7 +759,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               Nama Proyek <span className="text-red-700">*</span>
             </label>
             <input className={inputClass}
-              placeholder="Mobile App E-Commerce, dll"
+              placeholder="Mobile App E-Commerce"
               value={projForm.name}
               onChange={e=>setProjForm({...projForm,name:e.target.value})}></input>
           </div>
@@ -752,7 +770,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               Role
             </label>
             <input className={inputClass}
-              placeholder="UI/UX Designer, Backend Developer, dll"
+              placeholder="UI/UX Designer"
               value={projForm.role}
               onChange={e=>setProjForm({...projForm,role:e.target.value})}/>
           </div>
@@ -765,7 +783,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             <ModernDateField
               value={projForm.startDate}
               onChange={(value) => setProjForm({ ...projForm, startDate: value })}
-              placeholder="Pilih Tanggal mulai"
+              placeholder="Pilih tanggal mulai"
               language={cvData.Language}
             />
           </div>
@@ -780,17 +798,42 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
               min={projForm.startDate || undefined}
               value={projForm.endDate}
               onChange={(value) => setProjForm({ ...projForm, endDate: value })}
-              placeholder={projForm.isCurrent ? "Proyek masih berjalan" : "Pilih Tanggal selesai"}
+              placeholder={projForm.isCurrent ? "Proyek masih berjalan" : "Pilih tanggal selesai"}
               language={cvData.Language}
             />
-            <label className="mt-2 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={projForm.isCurrent}
-                onChange={(e) => setProjForm({ ...projForm, isCurrent: e.target.checked, endDate: e.target.checked ? "" : projForm.endDate })}
-              />
-              Proyek masih berjalan
-            </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-[var(--foreground)] mt-2">
+                {/* Checkbox asli disembunyikan total secara visual */}
+                <input
+                  type="checkbox"
+                  checked={projForm.isCurrent}
+                  onChange={(e) => setProjForm({ ...projForm, isCurrent: e.target.checked, endDate: e.target.checked ? "" : projForm.endDate })}
+                  // Ditambahkan !bg-transparent dan !appearance-none untuk membunuh paksaan dari globals.css
+                  className="sr-only peer !bg-transparent !appearance-none"
+                />
+                
+                {/* Kotak Custom Tiruan - Dikontrol penuh lewat Tailwind dan CSS variables */}
+                <div className="
+                  flex h-4 w-4 shrink-0 items-center justify-center rounded border 
+                  border-[color-mix(in_oklab,var(--color-soft)_80%,white)] 
+                  bg-[color-mix(in_oklab,var(--color-surface-container)_90%,white)] 
+                  transition-all duration-200
+                  peer-focus:ring-2 peer-focus:ring-[var(--color-primary)]/40
+                  peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary)]
+                ">
+                  {/* Ikon centang internal murni SVG */}
+                  <svg
+                    className="h-2.5 w-2.5 text-white opacity-0 transition-opacity duration-200 peer-checked:opacity-100"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth="3.5"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                
+                <span>Proyek masih Berjalan</span>
+              </label>
           </div>
 
           {/* Tech Stack */}
@@ -811,7 +854,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             </label>
             <input
               className={inputClass}
-              placeholder="https://github.com/username atau https://portfolio.com"
+                placeholder="https://github.com/username"
               value={projForm.link || ""}
               onChange={e => {setProjForm({ ...projForm, link: e.target.value });
               }}
@@ -826,7 +869,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             <textarea
               ref={projDescRef}
               className={`${inputClass} resize-none overflow-hidden`}
-              placeholder="Memberikan deskripsi singkat tentang proyek, seperti tujuan, teknologi yang digunakan, dan hasilnya"
+                placeholder="Jelaskan tujuan, peran kamu, teknologi, dan hasilnya."
               value={projForm.desc}
               onChange={e => {
                 setProjForm({ ...projForm, desc: e.target.value });
@@ -851,14 +894,14 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                 : "bg-[var(--color-accent)] hover:bg-[color-mix(in_oklab,var(--color-accent)_82%,black)]"
             }`}
           >
-            {editingProjIndex !== null ? "Update Proyek" : "Tambah Proyek"}
+            {editingProjIndex !== null ? "Simpan perubahan" : "Tambah proyek"}
           </button>
         </div>
 
         {/* LIST */}
         <div className="builder-list-panel mt-8 bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] p-5 rounded-xl border">
           <h3 className="font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-4 flex items-center gap-2">
-            Daftar Proyek
+            Proyek
             <span className="text-xs bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] px-2 py-1 rounded-full">
               {cvData.Projects.length}
             </span>
@@ -920,7 +963,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             </label>
             <textarea
               value={hardSkillsText}
-              placeholder="Python, SQL, R Language"
+              placeholder="Python, SQL, Tableau"
               onChange={e => setHardSkillsText(e.target.value)}
               onBlur={() => handleSkillsBlur("hard")}
               className={`${inputClass} min-h-24`}
@@ -933,7 +976,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
             </label>
             <textarea
               value={softSkillsText}
-              placeholder="Leadership, Team Work, Work Under Pressure"
+              placeholder="Leadership, teamwork, communication"
               onChange={e => setSoftSkillsText(e.target.value)}
               onBlur={() => handleSkillsBlur("soft")}
               className={`${inputClass} min-h-24`}
@@ -947,11 +990,11 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
         <button 
         onClick={prevStep}
         className="cursor-pointer px-6 py-2 bg-[color-mix(in_oklab,var(--color-soft)_55%,white)] rounded-lg font-bold hover:bg-[color-mix(in_oklab,var(--color-soft)_75%,white)] flex items-center gap-2"
-        ><ArrowBackwardIcon className="h-4 w-4" />Back</button>
+        ><ArrowBackwardIcon className="h-4 w-4" />Kembali</button>
         <button 
         onClick={nextStep}
         className="cursor-pointer px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg font-bold hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] flex items-center gap-2"
-        >Next<ArrowForwardIcon className="h-4 w-4" /></button>
+        >Lanjut<ArrowForwardIcon className="h-4 w-4" /></button>
       </div>
 
       <CustomModal {...modalProps} />

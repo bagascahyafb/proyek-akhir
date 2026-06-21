@@ -137,16 +137,16 @@ export default function BuilderPage() {
   
 
       if (!cvData.Personal_Info.Nama || !email) {
-        return showAlert("Peringatan", "Nama dan Email wajib diisi sebelum melanjutkan!");
+        return showAlert("Lengkapi data utama", "Isi nama dan email dulu.");
       }
   
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        return showAlert("Format Email", "Gunakan format email yang benar, contoh: nama@email.com");
+        return showAlert("Email belum valid", "Contoh yang benar: nama@email.com");
       }
   
       if (phoneNumber && (phoneNumber.length < 6 || phoneNumber.length > 15)) {
-        return showAlert("Nomor Telepon", "Nomor telepon harus 6-15 digit angka.");
+        return showAlert("Nomor HP belum valid", "Gunakan 6-15 digit angka.");
       }
   
       if (linkedInRaw) {
@@ -154,11 +154,11 @@ export default function BuilderPage() {
         try {
           linkedInUrl = normalizeUrl(linkedInRaw);
         } catch {
-          return showAlert("LinkedIn", "Format LinkedIn URL tidak valid.");
+          return showAlert("Link LinkedIn belum valid", "Contoh: https://linkedin.com/in/username");
         }
   
         if (!linkedInUrl.hostname.toLowerCase().includes("linkedin.com")) {
-          return showAlert("LinkedIn", "Gunakan link LinkedIn yang valid, contoh: https://linkedin.com/in/username");
+          return showAlert("Link LinkedIn belum valid", "Gunakan link profil LinkedIn kamu.");
         }
   
         updateInfo("LinkedIn", linkedInUrl.toString());
@@ -169,7 +169,7 @@ export default function BuilderPage() {
         try {
           portfolioUrl = normalizeUrl(portfolioRaw);
         } catch {
-          return showAlert("GitHub/Portofolio", "Format link GitHub/Portofolio tidak valid.");
+          return showAlert("Link portofolio belum valid", "Gunakan link GitHub atau portofolio yang bisa dibuka.");
         }
   
         updateInfo("Portfolio", portfolioUrl.toString());
@@ -204,7 +204,7 @@ export default function BuilderPage() {
         <aside className="builder-sidebar">
           <div>
             <div className="builder-sidebar-header">
-              <h2>CV Progress</h2>
+              <h2>Progres CV</h2>
               <span className="builder-step-badge">
                 Langkah {currentStep} dari 6
               </span>
@@ -212,12 +212,12 @@ export default function BuilderPage() {
   
             <div className="builder-steps-list">
               {[
-                "Personal info",
-                "Education",
-                "Experience",
-                "Certificates",
+                "Profil",
+                "Pendidikan",
+                "Pengalaman",
+                "Sertifikat",
                 "Review",
-                "Finish",
+                "Selesai",
               ].map((step, index) => {
                 const stepNumber = index + 1;
                 const isActive = currentStep === stepNumber;
@@ -256,8 +256,14 @@ export default function BuilderPage() {
             </h1>
   
             <p>
-              Lengkapi data diri Anda untuk membangun profil
-              yang kuat di mata HR dan sistem ATS.
+              {[
+                "Isi data yang wajib dulu. Detail lain bisa ditambah nanti.",
+                "Masukkan riwayat pendidikan dari ijazah atau manual.",
+                "Tambahkan pengalaman, proyek, dan skill yang relevan.",
+                "Tambahkan sertifikat atau penghargaan yang mendukung CV.",
+                "Pilih isi CV dan poles summary bila perlu.",
+                "Cek hasil akhir, lalu unduh CV kamu.",
+              ][currentStep - 1]}
             </p>
           </div>
   
