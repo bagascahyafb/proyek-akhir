@@ -2,6 +2,7 @@ import os
 import shutil
 import traceback
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +11,7 @@ import io
 from pdf2image import convert_from_path
 from PIL import Image
 # Import library logic
-from lib.ai import run_ai_ocr, enhance_final_cv_llm
+from lib.ai import run_ai_ocr, enhance_final_cv_llm, validate_it_ds_relevance
 from lib.doc_gen import generate_ats_docx
 from lib.file_process import validate_name_detailed
 from fastapi.responses import FileResponse
@@ -21,6 +22,9 @@ import uuid
 app = FastAPI()
 
 MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
+UPLOAD_DIR = os.path.join(os.getcwd(), "uploaded_files")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,20 +72,26 @@ async def extract_ocr(
     jenis: str = Form(...),
     target_name: str = Form("") 
 ):
-    temp_filename = f"temp_{file.filename}"
+    original_filename = file.filename or "uploaded-file"
+    safe_original_name = os.path.basename(original_filename)
+    file_ext = os.path.splitext(safe_original_name)[1]
+    stored_filename = f"{uuid.uuid4().hex}{file_ext}"
+    stored_path = os.path.join(UPLOAD_DIR, stored_filename)
+    temp_filename = f"temp_{uuid.uuid4().hex}_{safe_original_name}"
     try:
         validate_upload_size(file)
 
-        # 1. Simpan file sementara
+        # 1. Simpan file sementara dan salinan untuk preview
         with open(temp_filename, "wb") as f:
             shutil.copyfileobj(file.file, f)
+        shutil.copyfile(temp_filename, stored_path)
             
         print(f"📂 Processing: {file.filename} | Type: {file.content_type}")
         
         image_to_process = None
         
         # 2. LOGIC DETEKSI TIPE FILE (LEBIH KUAT)
-        filename_lower = file.filename.lower()
+        filename_lower = safe_original_name.lower()
         is_pdf = (file.content_type == "application/pdf") or (filename_lower.endswith(".pdf"))
         
         if is_pdf:
@@ -128,7 +138,7 @@ async def extract_ocr(
              # Kadang AI return None kalau API Key salah atau kuota habis
              raise HTTPException(status_code=500, detail="AI tidak memberikan respons yang valid.")
 
-        # 4. Validasi Nama
+        # 4. Validasi Nama dan relevansi bidang
         validation_info = {
             "is_valid": True,
             "status": "skipped",
@@ -150,7 +160,20 @@ async def extract_ocr(
             }
 
         print("✅ Done!")
-        return { "data": ocr_result, "validation": validation_info }
+        relevance_info = validate_it_ds_relevance(ocr_result, jenis)
+        document_info = {
+            "fileName": safe_original_name,
+            "fileUrl": f"/uploads/{stored_filename}",
+            "contentType": file.content_type or "",
+            "size": os.path.getsize(stored_path),
+        }
+
+        return {
+            "data": ocr_result,
+            "validation": validation_info,
+            "relevance": relevance_info,
+            "document": document_info,
+        }
 
     except HTTPException as he:
         raise he

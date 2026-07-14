@@ -83,7 +83,21 @@ export default function Step5Review({
       const res = await axios.post(`${apiUrl}/enhance-cv`, cvData, {
         headers: { "ngrok-skip-browser-warning": "true" }
       });
-      setCvData(res.data);
+      setCvData({
+        ...res.data,
+        Education: res.data.Education.map((item: typeof cvData.Education[number], index: number) => ({
+          ...item,
+          Document: cvData.Education[index]?.Document,
+        })),
+        Certifications: res.data.Certifications.map((item: typeof cvData.Certifications[number], index: number) => ({
+          ...item,
+          Document: cvData.Certifications[index]?.Document,
+        })),
+        Awards: res.data.Awards.map((item: typeof cvData.Awards[number], index: number) => ({
+          ...item,
+          Document: cvData.Awards[index]?.Document,
+        })),
+      });
       showSuccess(
         "CV sudah dipoles",
         "Cek lagi hasilnya sebelum lanjut."
@@ -144,10 +158,11 @@ export default function Step5Review({
             <button
               type="button"
               onClick={handleEnhance}
-              className="cursor-pointer w-full bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 mt-4"
+              disabled={loading}
+              className="cursor-pointer w-full bg-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-primary)_88%,black)] disabled:cursor-not-allowed disabled:opacity-70 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 mt-4"
             >
-              <AutoEnhanceIcon className="h-5 w-5" />
-              Poles dengan AI
+              <AutoEnhanceIcon className={`h-5 w-5 ${loading ? "animate-pulse" : ""}`} />
+              {loading ? "Memproses..." : "Poles dengan AI"}
             </button>
           </div>
 

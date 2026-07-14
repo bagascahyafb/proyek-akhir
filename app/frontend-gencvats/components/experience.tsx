@@ -728,6 +728,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                     <button
                       onClick={() => handleEditExp(i)}
                       aria-label="Edit pengalaman"
+                      title="Edit pengalaman"
                       className="cursor-pointer text-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] p-2 rounded-full transition"
                     >
                       <EditIcon className="h-5 w-5" />
@@ -736,6 +737,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                     <button
                       onClick={() => handleDeleteExp(i)}
                       aria-label="Hapus pengalaman"
+                      title="Hapus pengalaman"
                       className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] p-2 rounded-full transition"
                     >
                       <TrashIcon className="h-5 w-5" />
@@ -933,6 +935,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                   <button
                     onClick={() => handleEditProj(i)}
                     aria-label="Edit proyek"
+                    title="Edit proyek"
                     className="cursor-pointer text-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] p-2 rounded-full transition"
                   >
                     <EditIcon className="h-5 w-5" />
@@ -941,6 +944,7 @@ export default function Step3Experience({ cvData, setCvData, nextStep, prevStep 
                   <button
                     onClick={() => handleDeleteProj(i)}
                     aria-label="Hapus proyek"
+                    title="Hapus proyek"
                     className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] p-2 rounded-full transition"
                   >
                     <TrashIcon className="h-5 w-5" />

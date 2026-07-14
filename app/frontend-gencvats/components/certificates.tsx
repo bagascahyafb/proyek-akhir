@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import axios from "axios";
-import { StepProps } from "@/types";
+import { StepProps, UploadedDocument } from "@/types";
 import { BuilderLoadingOverlay, useModal, CustomModal } from "./custommodal";
-import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon } from "./icons";
+import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, EyeIcon, FileUploadOutline, TrashIcon } from "./icons";
 import {
   buildDuplicateKey,
   filterUniqueNewItems,
@@ -52,6 +52,7 @@ const formatCertificateYearRange = (startYear?: string | number, expiryYear?: st
 export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep, prevStep }: StepProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "manual">("upload");
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [uploadCategory, setUploadCategory] = useState<"Keahlian" | "Penghargaan">("Keahlian");
@@ -73,10 +74,37 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
   const getAwardDuplicateKey = (entry: { Nama_Award: string; Judul_Kompetisi?: string; Pemberi: string; Tahun: string }) =>
     buildDuplicateKey([entry.Nama_Award, entry.Judul_Kompetisi, entry.Pemberi, entry.Tahun]);
 
+  const resolveDocumentUrl = (document?: UploadedDocument) => {
+    if (!document?.fileUrl) return "";
+    return document.fileUrl.startsWith("http") ? document.fileUrl : `${apiUrl}${document.fileUrl}`;
+  };
+
+  const openDocumentPreview = async (document?: UploadedDocument) => {
+    const url = resolveDocumentUrl(document);
+    if (!url) return showAlert("Preview belum tersedia", "File preview tidak ditemukan untuk data ini.");
+
+    try {
+      const response = await axios.get(url, {
+        responseType: "blob",
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      });
+      const blobUrl = URL.createObjectURL(response.data);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.detail || error.message || "File tidak bisa dibuka."
+        : "File tidak bisa dibuka.";
+      showAlert("Preview gagal", message);
+    }
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     type UploadResult = {
-      certification?: { Nama: string; Penerbit: string; Tahun: string; Masa_Berlaku?: string };
-      award?: { Nama_Award: string; Pemberi: string; Tahun: string };
+      certification?: { Nama: string; Penerbit: string; Tahun: string; Masa_Berlaku?: string; Document?: UploadedDocument };
+      award?: { Nama_Award: string; Pemberi: string; Tahun: string; Document?: UploadedDocument };
       skillsHard: string[];
       skillsSoft: string[];
     };
@@ -114,6 +142,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     }
 
     setLoading(true);
+    setUploadProgress({ percent: 0, label: "Menyiapkan upload..." });
     let savedCount = 0;
     let processingFailedCount = 0;
     let invalidCount = 0;
@@ -188,6 +217,18 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       }
 
       return result;
+    };
+
+    const attachDocumentToResult = (result: UploadResult, document?: UploadedDocument): UploadResult => ({
+      ...result,
+      certification: result.certification ? { ...result.certification, Document: document } : undefined,
+      award: result.award ? { ...result.award, Document: document } : undefined,
+    });
+
+    const formatRelevanceMessage = (relevance?: { status?: string; reason?: string }) => {
+      if (!relevance || relevance.status === "relevant") return "";
+      const reason = relevance.reason || "AI menilai dokumen ini belum berkaitan jelas dengan IT & Data Science.";
+      return `File tampaknya tidak terkait IT & Data Science. ${reason}`;
     };
 
     const filterDuplicateUploadResults = (results: UploadResult[]) => {
@@ -271,34 +312,36 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
     };
 
     try {
-      for (const file of validFiles) {
+      for (const [fileIndex, file] of validFiles.entries()) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("jenis", "sertifikat");
         formData.append("target_name", cvData.Personal_Info.Nama);
+        setUploadProgress({
+          percent: Math.round((fileIndex / validFiles.length) * 100),
+          label: `Mengupload ${file.name}...`,
+        });
         try {
           const res = await axios.post(`${apiUrl}/extract-ocr`, formData, {
             headers: {
               "Content-Type": "multipart/form-data",
               "ngrok-skip-browser-warning": "true",
             },
+            onUploadProgress: (event) => {
+              const loaded = event.total ? event.loaded / event.total : 0;
+              const overall = ((fileIndex + loaded) / validFiles.length) * 100;
+              setUploadProgress({
+                percent: Math.min(95, Math.round(overall)),
+                label: `Mengupload ${file.name}...`,
+              });
+            },
           });
-          const { data, validation } = res.data;
+          const { data, validation, relevance, document } = res.data;
           const status: string = validation?.status || (validation?.is_valid ? "valid" : "invalid");
           const score: number | null =
             typeof validation?.similarity_score === "number" ? validation.similarity_score : null;
-          const result = buildResultFromOcr(data);
-
-          if (status === "warning") {
-            warningCandidates.push({
-              fileName: file.name,
-              result,
-              extractedName: formatDocumentName(validation?.extracted_name),
-              score,
-              message: formatValidationMessage("warning", score, validation?.message),
-            });
-            continue;
-          }
+          const result = attachDocumentToResult(buildResultFromOcr(data), document);
+          const relevanceMessage = formatRelevanceMessage(relevance);
 
           if (status === "invalid" || (validation && !validation.is_valid)) {
             invalidCount += 1;
@@ -312,8 +355,25 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             continue;
           }
 
+          if (status === "warning" || relevanceMessage) {
+            warningCandidates.push({
+              fileName: file.name,
+              result,
+              extractedName: formatDocumentName(validation?.extracted_name),
+              score,
+              message: [status === "warning" ? formatValidationMessage("warning", score, validation?.message) : "", relevanceMessage]
+                .filter(Boolean)
+                .join("\n"),
+            });
+            continue;
+          }
+
           acceptedResults.push(result);
           savedCount += 1;
+          setUploadProgress({
+            percent: Math.round(((fileIndex + 1) / validFiles.length) * 100),
+            label: `Selesai memproses ${file.name}.`,
+          });
         } catch (error) {
           processingFailedCount += 1;
           const reason = axios.isAxiosError(error)
@@ -329,6 +389,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
       showAlert("Error", message);
     } finally {
       setLoading(false);
+      setUploadProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
       const uniqueAccepted = filterDuplicateUploadResults(acceptedResults);
@@ -396,7 +457,8 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
             } else {
               showAlert("Upload selesai", buildDetailLines(0, false));
             }
-          }
+          },
+          { confirmLabel: "Tetap lanjutkan", cancelLabel: "Upload file lain" }
         );
         return;
       }
@@ -626,6 +688,20 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               <p className="text-xs font-semibold text-[var(--color-primary)] mt-2 bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] px-2 py-1 rounded">
                 Masuk ke {uploadCategory === "Keahlian" ? "Sertifikat" : "Penghargaan"}
               </p>
+              {uploadProgress && (
+                <div className="mt-4 w-full max-w-sm">
+                  <div className="mb-1 flex items-center justify-between text-xs font-semibold text-[color-mix(in_oklab,var(--foreground)_68%,white)]">
+                    <span>{uploadProgress.label}</span>
+                    <span>{uploadProgress.percent}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
+                      style={{ width: `${uploadProgress.percent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -744,6 +820,9 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
                   </p>
                 </div>
                 <div className="builder-icon-actions">
+                  {certificate.Document && (
+                    <button onClick={() => openDocumentPreview(certificate.Document)} className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" aria-label="Preview sertifikat" title="Preview sertifikat"><EyeIcon className="h-5 w-5" /></button>
+                  )}
                   <button onClick={() => handleEditCert(i)} className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" aria-label="Edit sertifikat"><EditIcon className="h-5 w-5" /></button>
                   <button onClick={() => handleDeleteCert(i)} className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:text-[color-mix(in_oklab,var(--color-primary)_82%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] transition" aria-label="Hapus sertifikat"><TrashIcon className="h-5 w-5" /></button>
                 </div>
@@ -771,8 +850,23 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
                   </p>
                 </div>
                 <div className="builder-icon-actions">
-                  <button onClick={() => handleEditAward(i)} className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" aria-label="Edit penghargaan"><EditIcon className="h-5 w-5" /></button>
-                  <button onClick={() => handleDeleteAward(i)} className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:text-[color-mix(in_oklab,var(--color-primary)_82%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] transition" aria-label="Hapus penghargaan"><TrashIcon className="h-5 w-5" /></button>
+                  {award.Document && (
+                    <button onClick={() => openDocumentPreview(award.Document)} className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" aria-label="Preview penghargaan" title="Preview penghargaan"><EyeIcon className="h-5 w-5" /></button>
+                  )}
+                  <button onClick={() => handleEditAward(i)} 
+                  className="cursor-pointer text-[var(--color-primary)] hover:text-[color-mix(in_oklab,var(--color-primary)_80%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition" 
+                  aria-label="Edit penghargaan"
+                  title="Edit penghargaan"
+                  >
+                    <EditIcon className="h-5 w-5" />
+                  </button>
+                  <button onClick={() => handleDeleteAward(i)} 
+                  className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:text-[color-mix(in_oklab,var(--color-primary)_82%,black)] p-2 rounded-full hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] transition" 
+                  aria-label="Hapus penghargaan"
+                  title="Hapus penghargaan"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                    </button>
                 </div>
               </li>
             ))}
@@ -798,7 +892,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           <ArrowForwardIcon className="h-4 w-4" />
         </button>
       </div>
-      {loading && <BuilderLoadingOverlay message="Membaca dokumen..." />}
+      {loading && <BuilderLoadingOverlay message="Membaca dokumen..." progress={uploadProgress} />}
       <CustomModal {...modalProps} />
     </div>
   );

@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import axios from "axios";
-import { StepProps } from "@/types";
+import { StepProps, UploadedDocument } from "@/types";
 import { BuilderLoadingOverlay, useModal, CustomModal } from "./custommodal";
-import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, FileUploadOutline, TrashIcon } from "./icons";
+import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, EyeIcon, FileUploadOutline, TrashIcon } from "./icons";
 import { buildDuplicateKey, filterUniqueNewItems, formatDuplicateMessage, isDuplicateItem } from "./duplicate-data";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -13,6 +13,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
   const [manual, setManual] = useState({uni: "", jur: "", gel: "", thn: "", ipk: "", matkul: "", ket: ""});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { modalProps, showAlert, showConfirm, showSuccess } = useModal();
@@ -24,6 +25,33 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
     Tahun_Lulus: string;
   }) => buildDuplicateKey([entry.Institusi, entry.Jurusan, entry.Gelar, entry.Tahun_Lulus]);
 
+  const resolveDocumentUrl = (document?: UploadedDocument) => {
+    if (!document?.fileUrl) return "";
+    return document.fileUrl.startsWith("http") ? document.fileUrl : `${apiUrl}${document.fileUrl}`;
+  };
+
+  const openDocumentPreview = async (document?: UploadedDocument) => {
+    const url = resolveDocumentUrl(document);
+    if (!url) return showAlert("Preview belum tersedia", "File preview tidak ditemukan untuk data ini.");
+
+    try {
+      const response = await axios.get(url, {
+        responseType: "blob",
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      });
+      const blobUrl = URL.createObjectURL(response.data);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.detail || error.message || "File tidak bisa dibuka."
+        : "File tidak bisa dibuka.";
+      showAlert("Preview gagal", message);
+    }
+  };
+
   // ================= UPLOAD =================
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     type EducationEntry = {
@@ -34,6 +62,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       IPK: string;
       Matkul: string;
       keterangan: string;
+      Document?: UploadedDocument;
     };
 
     type WarningCandidate = {
@@ -63,6 +92,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
     }
 
     setLoading(true);
+    setUploadProgress({ percent: 0, label: "Menyiapkan upload..." });
     let savedCount = 0;
     let processingFailedCount = 0;
     let invalidCount = 0;
@@ -106,19 +136,39 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       ].join("\n");
     };
 
+    const formatRelevanceMessage = (relevance?: { status?: string; reason?: string }) => {
+      if (!relevance || relevance.status === "relevant") return "";
+      const reason = relevance.reason || "AI menilai dokumen ini belum berkaitan jelas dengan IT & Data Science.";
+      return `File tampaknya tidak terkait IT & Data Science. ${reason}`;
+    };
+
     try {
-      for (const file of validFiles) {
+      for (const [fileIndex, file] of validFiles.entries()) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("jenis", "ijazah");
         formData.append("target_name", cvData.Personal_Info.Nama);
+        setUploadProgress({
+          percent: Math.round((fileIndex / validFiles.length) * 100),
+          label: `Mengupload ${file.name}...`,
+        });
 
         try {
-          const res = await axios.post(`${apiUrl}/extract-ocr`, formData);
-          const { data, validation } = res.data;
+          const res = await axios.post(`${apiUrl}/extract-ocr`, formData, {
+            onUploadProgress: (event) => {
+              const loaded = event.total ? event.loaded / event.total : 0;
+              const overall = ((fileIndex + loaded) / validFiles.length) * 100;
+              setUploadProgress({
+                percent: Math.min(95, Math.round(overall)),
+                label: `Mengupload ${file.name}...`,
+              });
+            },
+          });
+          const { data, validation, relevance, document } = res.data;
           const status: string = validation?.status || (validation?.is_valid ? "valid" : "invalid");
           const score: number | null =
             typeof validation?.similarity_score === "number" ? validation.similarity_score : null;
+          const relevanceMessage = formatRelevanceMessage(relevance);
 
           const newEntry: EducationEntry = {
             Institusi: data.Universitas,
@@ -128,18 +178,8 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             IPK: data.IPK,
             Matkul: "",
             keterangan: "",
+            Document: document,
           };
-
-          if (status === "warning") {
-            warningCandidates.push({
-              fileName: file.name,
-              entry: newEntry,
-              extractedName: formatDocumentName(validation?.extracted_name),
-              score,
-              message: formatValidationMessage("warning", score, validation?.message),
-            });
-            continue;
-          }
 
           if (status === "invalid" || (validation && !validation.is_valid)) {
             invalidCount += 1;
@@ -153,9 +193,26 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             continue;
           }
 
+          if (status === "warning" || relevanceMessage) {
+            warningCandidates.push({
+              fileName: file.name,
+              entry: newEntry,
+              extractedName: formatDocumentName(validation?.extracted_name),
+              score,
+              message: [status === "warning" ? formatValidationMessage("warning", score, validation?.message) : "", relevanceMessage]
+                .filter(Boolean)
+                .join("\n"),
+            });
+            continue;
+          }
+
           acceptedEntries.push(newEntry);
           acceptedDocumentNames.push(formatDocumentName(validation?.extracted_name));
           savedCount += 1;
+          setUploadProgress({
+            percent: Math.round(((fileIndex + 1) / validFiles.length) * 100),
+            label: `Selesai memproses ${file.name}.`,
+          });
         } catch (error) {
           processingFailedCount += 1;
           const reason = axios.isAxiosError(error)
@@ -171,6 +228,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
       showAlert("Error", message);
     } finally {
       setLoading(false);
+      setUploadProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
       const acceptedUploadRows = acceptedEntries.map((entry, index) => ({
@@ -269,7 +327,8 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             } else {
         showAlert("Upload selesai", buildDetailLines(0, false));
             }
-          }
+          },
+          { confirmLabel: "Tetap lanjutkan", cancelLabel: "Upload file lain" }
         );
         return;
       }
@@ -286,6 +345,9 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
   const addManual = () => {
     if (!manual.uni || !manual.jur || !manual.thn) {
       return showAlert("Lengkapi pendidikan", "Isi institusi, jurusan, dan tahun lulus.");
+    }
+    if (!manual.ipk) {
+      return showAlert("Lengkapi pendidikan", "Isi IPK terlebih dahulu.");
     }
     const ipkValue = (manual.ipk ?? "").toString().trim();
     if (ipkValue) {
@@ -387,6 +449,20 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
             <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
             <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Upload ijazah</p>
             <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG. Maks. 5 MB per file.</p>
+            {uploadProgress && (
+              <div className="mt-4 w-full max-w-sm">
+                <div className="mb-1 flex items-center justify-between text-xs font-semibold text-[color-mix(in_oklab,var(--foreground)_68%,white)]">
+                  <span>{uploadProgress.label}</span>
+                  <span>{uploadProgress.percent}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
+                  <div
+                    className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -446,7 +522,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
 
           {/* IPK */}
           <div>
-            <label className="block text-sm font-bold mb-1">IPK</label>
+            <label className="block text-sm font-bold mb-1">IPK <span className="text-red-700">*</span></label>
             <input
               type="number"
               min={0}
@@ -542,9 +618,21 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
               </div>
 
               <div className="builder-icon-actions">
+                {e.Document && (
+                  <button
+                    onClick={() => openDocumentPreview(e.Document)}
+                    aria-label="Preview ijazah"
+                    title="Preview ijazah"
+                    className="cursor-pointer text-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] p-2 rounded-full transition flex items-center justify-center"
+                  >
+                    <EyeIcon className="h-5 w-5" />
+                  </button>
+                )}
+
                 <button
                   onClick={() => handleEdit(i)}
                   aria-label="Edit pendidikan"
+                  title="Edit pendidikan"
                   className="cursor-pointer text-[var(--color-primary)] hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] p-2 rounded-full transition flex items-center justify-center"
                 >
                   <EditIcon className="h-5 w-5" />
@@ -553,6 +641,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
                 <button
                   onClick={() => handleDelete(i)}
                   aria-label="Hapus pendidikan"
+                  title="Hapus pendidikan"
                   className="cursor-pointer text-[color-mix(in_oklab,var(--color-primary)_70%,black)] hover:bg-[color-mix(in_oklab,var(--color-accent)_25%,white)] p-2 rounded-full transition flex items-center justify-center"
                 >
                   <TrashIcon className="h-5 w-5" />
@@ -581,7 +670,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         </button>
       </div>
 
-      {loading && <BuilderLoadingOverlay message="Membaca ijazah..." />}
+      {loading && <BuilderLoadingOverlay message="Membaca ijazah..." progress={uploadProgress} />}
       <CustomModal {...modalProps} />
     </div>
   );

@@ -64,6 +64,68 @@ def run_ai_ocr(image, jenis):
     except Exception as e:
         return None
 
+IT_DS_KEYWORDS = [
+    "informatika", "sistem informasi", "ilmu komputer", "computer science",
+    "information technology", "teknologi informasi", "data science", "data analyst",
+    "data analytics", "machine learning", "artificial intelligence", "ai",
+    "software", "web developer", "mobile developer", "programming", "coding",
+    "database", "sql", "python", "javascript", "java", "cloud", "network",
+    "cybersecurity", "security", "ui/ux", "devops", "backend", "frontend",
+    "fullstack", "data mining", "big data", "business intelligence",
+]
+
+def validate_it_ds_relevance(ocr_result, jenis):
+    text = json.dumps(ocr_result, ensure_ascii=False).lower()
+    matched_keywords = [keyword for keyword in IT_DS_KEYWORDS if keyword in text]
+    if matched_keywords:
+        return {
+            "is_relevant": True,
+            "status": "relevant",
+            "confidence": 0.9,
+            "reason": f"Terdeteksi kata kunci: {', '.join(matched_keywords[:5])}.",
+        }
+
+    client = get_client()
+    prompt = f"""
+    Klasifikasikan apakah data OCR dokumen {jenis} berikut relevan untuk bidang IT dan Data Science.
+
+    Anggap relevan jika berkaitan dengan informatika, sistem informasi, ilmu komputer, software engineering,
+    data science, machine learning, AI, cybersecurity, cloud, jaringan, database, UI/UX, pemrograman,
+    data analytics, atau skill teknologi digital yang dekat dengan bidang tersebut.
+
+    DATA OCR:
+    {json.dumps(ocr_result, ensure_ascii=False)}
+
+    Output wajib JSON murni dengan keys:
+    - "is_relevant": boolean
+    - "confidence": number antara 0 dan 1
+    - "reason": string singkat dalam Bahasa Indonesia
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_ID,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.001,
+            max_tokens=512,
+        )
+        content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(content)
+        is_relevant = bool(parsed.get("is_relevant"))
+        return {
+            "is_relevant": is_relevant,
+            "status": "relevant" if is_relevant else "not_relevant",
+            "confidence": parsed.get("confidence"),
+            "reason": parsed.get("reason") or "AI tidak memberi alasan rinci.",
+        }
+    except Exception as e:
+        return {
+            "is_relevant": False,
+            "status": "unknown",
+            "confidence": None,
+            "reason": "Validasi relevansi IT & Data Science tidak dapat dipastikan.",
+        }
+
 def enhance_final_cv_llm(data, language="English"):
     client = get_client()
     

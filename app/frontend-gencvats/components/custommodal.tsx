@@ -14,6 +14,8 @@ export function useModal() {
     type: "alert" | "confirm" | "success";
     onConfirm?: () => void;
     onCancel?: () => void;
+    confirmLabel?: string;
+    cancelLabel?: string;
   }>({ isOpen: false, title: "", message: "", type: "alert" });
 
   const showAlert = (title: string, message: string) => {
@@ -24,8 +26,23 @@ export function useModal() {
     setModalState({ isOpen: true, title, message, type: "success" });
   };
 
-  const showConfirm = (title: string, message: string, onConfirm: () => void, onCancel?: () => void) => {
-    setModalState({ isOpen: true, title, message, type: "confirm", onConfirm, onCancel });
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    labels?: { confirmLabel?: string; cancelLabel?: string }
+  ) => {
+    setModalState({
+      isOpen: true,
+      title,
+      message,
+      type: "confirm",
+      onConfirm,
+      onCancel,
+      confirmLabel: labels?.confirmLabel,
+      cancelLabel: labels?.cancelLabel,
+    });
   };
 
   const closeModal = () => {
@@ -48,10 +65,12 @@ interface ModalProps {
   type: "alert" | "confirm" | "success";
   onConfirm?: () => void;
   onCancel?: () => void;
+  confirmLabel?: string;
+  cancelLabel?: string;
   onClose: () => void;
 }
 
-export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel, onClose }: ModalProps) {
+export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel, confirmLabel, cancelLabel, onClose }: ModalProps) {
   if (!isOpen || typeof document === "undefined") return null;
 
   const modalTone = {
@@ -119,7 +138,7 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel,
               }} 
               className="cursor-pointer rounded-xl border border-[color-mix(in_oklab,var(--color-soft)_75%,white)] bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] px-5 py-2.5 font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)] transition hover:bg-[color-mix(in_oklab,var(--color-soft)_55%,white)]"
             >
-              Batal
+              {cancelLabel || "Batal"}
             </button>
           )}
           <button
@@ -130,7 +149,7 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel,
             }}
             className={`cursor-pointer rounded-xl px-5 py-2.5 font-bold transition ${modalTone.actionClass}`}
           >
-            {type === "confirm" ? "Ya, lanjut" : type === "success" ? "Selesai" : "Mengerti"}
+            {type === "confirm" ? confirmLabel || "Ya, lanjut" : type === "success" ? "Selesai" : "Mengerti"}
           </button>
         </div>
       </div>
@@ -139,7 +158,13 @@ export function CustomModal({ isOpen, title, message, type, onConfirm, onCancel,
   );
 }
 
-export function BuilderLoadingOverlay({ message }: { message: string }) {
+export function BuilderLoadingOverlay({
+  message,
+  progress,
+}: {
+  message: string;
+  progress?: { percent: number; label?: string } | null;
+}) {
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -147,6 +172,20 @@ export function BuilderLoadingOverlay({ message }: { message: string }) {
       <div className="w-full max-w-sm rounded-2xl border border-[color-mix(in_oklab,var(--color-soft)_55%,white)] bg-[color-mix(in_oklab,var(--color-surface)_94%,white)] p-6 text-center shadow-[0_18px_40px_rgba(2,6,23,0.28)]">
         <LoadingTwotoneLoop className="mx-auto mb-4 h-12 w-12 animate-spin text-[var(--color-primary)]" />
         <p className="text-base font-bold text-[var(--foreground)]">{message}</p>
+        {progress && (
+          <div className="mt-4">
+            <div className="mb-1 flex items-center justify-between text-xs font-semibold text-[color-mix(in_oklab,var(--foreground)_68%,white)]">
+              <span>{progress.label || "Memproses..."}</span>
+              <span>{progress.percent}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
+              <div
+                className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
+                style={{ width: `${progress.percent}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body
