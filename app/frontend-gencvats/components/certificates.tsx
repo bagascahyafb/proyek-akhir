@@ -49,7 +49,7 @@ const formatCertificateYearRange = (startYear?: string | number, expiryYear?: st
   return start || expiry || "";
 };
 
-export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep, prevStep }: StepProps) {
+export default function Step4Certificates({ cvData, setCvData, apiUrl, llmProvider = "local", nextStep, prevStep }: StepProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "manual">("upload");
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(null);
@@ -317,6 +317,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
         formData.append("file", file);
         formData.append("jenis", "sertifikat");
         formData.append("target_name", cvData.Personal_Info.Nama);
+        formData.append("llm_provider", llmProvider);
         setUploadProgress({
           percent: Math.round((fileIndex / validFiles.length) * 100),
           label: `Mengupload ${file.name}...`,

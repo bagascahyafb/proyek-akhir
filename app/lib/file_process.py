@@ -4,7 +4,16 @@ import io
 import os
 import base64
 from thefuzz import fuzz
-POPPLER_PATH = r"PROYEK-AKHIR/bin/poppler-25.07.0/Library/bin" 
+
+def get_poppler_path():
+    configured_poppler_path = os.getenv("POPPLER_PATH")
+    if configured_poppler_path:
+        return configured_poppler_path
+
+    local_poppler_path = os.path.join(
+        os.getcwd(), "bin", "poppler-25.07.0", "Library", "bin"
+    )
+    return local_poppler_path if os.path.exists(local_poppler_path) else None
 
 def process_uploaded_file(uploaded_file):
     try:
@@ -12,7 +21,12 @@ def process_uploaded_file(uploaded_file):
             temp_filename = f"temp_{uploaded_file.name}"
             with open(temp_filename, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            images = convert_from_path(temp_filename, first_page=1, last_page=1, poppler_path=POPPLER_PATH)
+            images = convert_from_path(
+                temp_filename,
+                first_page=1,
+                last_page=1,
+                poppler_path=get_poppler_path(),
+            )
             if os.path.exists(temp_filename): os.remove(temp_filename)
             return images[0] if images else None
         else:

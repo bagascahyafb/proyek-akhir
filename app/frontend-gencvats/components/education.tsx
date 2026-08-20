@@ -7,7 +7,7 @@ import { buildDuplicateKey, filterUniqueNewItems, formatDuplicateMessage, isDupl
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
-export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, prevStep }: StepProps) {
+export default function Step2Education({ cvData, setCvData, apiUrl, llmProvider = "local", nextStep, prevStep }: StepProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "manual">("upload");
   const tabs: Array<"upload" | "manual"> = ["upload", "manual"];
   const [manual, setManual] = useState({uni: "", jur: "", gel: "", thn: "", ipk: "", matkul: "", ket: ""});
@@ -148,6 +148,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         formData.append("file", file);
         formData.append("jenis", "ijazah");
         formData.append("target_name", cvData.Personal_Info.Nama);
+        formData.append("llm_provider", llmProvider);
         setUploadProgress({
           percent: Math.round((fileIndex / validFiles.length) * 100),
           label: `Mengupload ${file.name}...`,

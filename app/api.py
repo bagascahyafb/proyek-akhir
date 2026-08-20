@@ -1,30 +1,39 @@
 import os
 import shutil
+import subprocess
+import tempfile
 import traceback
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.background import BackgroundTask
 from pydantic import BaseModel
 import io
 from pdf2image import convert_from_path
 from PIL import Image
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
 # Import library logic
 from lib.ai import run_ai_ocr, enhance_final_cv_llm, validate_it_ds_relevance
 from lib.doc_gen import generate_ats_docx
 from lib.file_process import validate_name_detailed
 from fastapi.responses import FileResponse
-from docx2pdf import convert
-import os
 import uuid
 
 app = FastAPI()
 
 MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
-UPLOAD_DIR = os.path.join(os.getcwd(), "uploaded_files")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+configured_upload_dir = Path(os.getenv("UPLOAD_DIR", "uploaded_files"))
+UPLOAD_DIR = configured_upload_dir if configured_upload_dir.is_absolute() else BASE_DIR / configured_upload_dir
+UPLOAD_DIR = UPLOAD_DIR.resolve()
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,10 +43,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 # --- KONFIGURASI PATH POPPLER ---
-BASE_DIR = os.getcwd()
-# Sesuaikan path ini jika perlu
-POPPLER_PATH = os.path.join(BASE_DIR, "bin", "poppler-25.07.0", "Library", "bin")
+LOCAL_POPPLER_PATH = BASE_DIR / "bin" / "poppler-25.07.0" / "Library" / "bin"
+POPPLER_PATH = os.getenv("POPPLER_PATH") or (str(LOCAL_POPPLER_PATH) if LOCAL_POPPLER_PATH.exists() else None)
 
 # --- MODEL DATA ---
 class CVData(BaseModel):
@@ -50,6 +62,7 @@ class CVData(BaseModel):
     Certifications: list
     Awards: list
     Language: str = "English"
+    LLM_Provider: str | None = None
 
 
 def validate_upload_size(upload_file: UploadFile) -> None:
@@ -65,18 +78,69 @@ def validate_upload_size(upload_file: UploadFile) -> None:
             detail="Ukuran file melebihi batas 5 MB per file."
         )
 
+def convert_docx_to_pdf(docx_path: Path, output_dir: Path) -> Path:
+    libreoffice_binary = os.getenv("LIBREOFFICE_BINARY", "libreoffice")
+    command = [
+        libreoffice_binary,
+        "--headless",
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        str(output_dir),
+        str(docx_path),
+    ]
+
+    try:
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=500,
+            detail="LibreOffice tidak ditemukan. Pastikan LibreOffice terinstall di Docker image/server.",
+        )
+    except subprocess.CalledProcessError as e:
+        message = e.stderr.strip() or e.stdout.strip() or str(e)
+        raise HTTPException(status_code=500, detail=f"Gagal konversi PDF: {message}")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Konversi PDF timeout.")
+
+    pdf_path = output_dir / f"{docx_path.stem}.pdf"
+    if not pdf_path.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"LibreOffice selesai tanpa menghasilkan PDF. Output: {result.stdout.strip()}",
+        )
+    return pdf_path
+
+def cleanup_files(*paths):
+    for path in paths:
+        target = Path(path)
+        try:
+            if target.is_dir():
+                target.rmdir()
+            else:
+                target.unlink(missing_ok=True)
+        except Exception:
+            pass
+
 # --- ENDPOINT OCR (PERBAIKAN HANDLING FILE) ---
 @app.post("/extract-ocr")
 async def extract_ocr(
     file: UploadFile = File(...), 
     jenis: str = Form(...),
-    target_name: str = Form("") 
+    target_name: str = Form(""),
+    llm_provider: str = Form(""),
 ):
     original_filename = file.filename or "uploaded-file"
     safe_original_name = os.path.basename(original_filename)
     file_ext = os.path.splitext(safe_original_name)[1]
     stored_filename = f"{uuid.uuid4().hex}{file_ext}"
-    stored_path = os.path.join(UPLOAD_DIR, stored_filename)
+    stored_path = UPLOAD_DIR / stored_filename
     temp_filename = f"temp_{uuid.uuid4().hex}_{safe_original_name}"
     try:
         validate_upload_size(file)
@@ -97,10 +161,6 @@ async def extract_ocr(
         if is_pdf:
             print("📄 Detected as PDF")
             try:
-                # Cek Path Poppler
-                if not os.path.exists(POPPLER_PATH):
-                    raise Exception(f"Poppler path not found: {POPPLER_PATH}")
-
                 images = convert_from_path(
                     temp_filename, 
                     first_page=1, 
@@ -132,7 +192,8 @@ async def extract_ocr(
 
         # 3. Jalankan AI OCR
         print(f"🤖 Sending to AI ({jenis})...")
-        ocr_result = run_ai_ocr(image_to_process, jenis)
+        selected_provider = llm_provider.strip().lower() or None
+        ocr_result = run_ai_ocr(image_to_process, jenis, selected_provider)
         
         if not ocr_result:
              # Kadang AI return None kalau API Key salah atau kuota habis
@@ -160,12 +221,12 @@ async def extract_ocr(
             }
 
         print("✅ Done!")
-        relevance_info = validate_it_ds_relevance(ocr_result, jenis)
+        relevance_info = validate_it_ds_relevance(ocr_result, jenis, selected_provider)
         document_info = {
             "fileName": safe_original_name,
             "fileUrl": f"/uploads/{stored_filename}",
             "contentType": file.content_type or "",
-            "size": os.path.getsize(stored_path),
+            "size": stored_path.stat().st_size,
         }
 
         return {
@@ -196,6 +257,7 @@ async def generate_docx(data: CVData):
         cv_dict = data.model_dump()
         
         raw_language = cv_dict.pop("Language", None)
+        cv_dict.pop("LLM_Provider", None)
         language = raw_language if raw_language else "English"
         
         doc = generate_ats_docx(cv_dict, language)
@@ -223,7 +285,8 @@ async def enhance_cv(data: CVData):
     try:
         cv_dict = data.model_dump()
         language = cv_dict.pop("Language", "English")
-        result = enhance_final_cv_llm(cv_dict, language)
+        llm_provider = cv_dict.pop("LLM_Provider", None)
+        result = enhance_final_cv_llm(cv_dict, language, llm_provider)
         return result
     except Exception as e:
         traceback.print_exc()
@@ -232,38 +295,38 @@ async def enhance_cv(data: CVData):
 # --- ENDPOINT GENERATE PDF (DARI DOCX) ---
 @app.post("/generate-pdf")
 def generate_pdf(data: dict):
-    filename = f"cv_{uuid.uuid4()}"
-    docx_path = f"{filename}.docx"
-    pdf_path = f"{filename}.pdf"
+    temp_dir = Path(tempfile.mkdtemp(prefix="gencvats_pdf_"))
+    docx_path = temp_dir / f"cv_{uuid.uuid4().hex}.docx"
 
-    doc = generate_ats_docx(data, data.get("Language", "English"))
-    doc.save(docx_path)
-
-    convert(docx_path, pdf_path)
-
-    return FileResponse(pdf_path, media_type="application/pdf", filename="CV.pdf")
+    try:
+        doc = generate_ats_docx(data, data.get("Language", "English"))
+        doc.save(docx_path)
+        pdf_path = convert_docx_to_pdf(docx_path, temp_dir)
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            filename="CV.pdf",
+            background=BackgroundTask(cleanup_files, docx_path, pdf_path, temp_dir),
+        )
+    except HTTPException:
+        cleanup_files(docx_path, temp_dir)
+        raise
 
 # --- ENDPOINT PREVIEW PDF (DARI DOCX) ---
 @app.post("/preview-pdf")
 def preview_pdf(data: dict):
-    filename = f"preview_{uuid.uuid4()}"
-    docx_path = f"{filename}.docx"
-    pdf_path = f"{filename}.pdf"
+    temp_dir = Path(tempfile.mkdtemp(prefix="gencvats_preview_"))
+    docx_path = temp_dir / f"preview_{uuid.uuid4().hex}.docx"
 
-    doc = generate_ats_docx(data, data.get("Language", "English"))
-    doc.save(docx_path)
-
-    convert(docx_path, pdf_path)
-
-    # 🔥 return + auto delete
-    response = FileResponse(pdf_path, media_type="application/pdf")
-
-    @response.background
-    def cleanup():
-        try:
-            os.remove(docx_path)
-            os.remove(pdf_path)
-        except:
-            pass
-
-    return response
+    try:
+        doc = generate_ats_docx(data, data.get("Language", "English"))
+        doc.save(docx_path)
+        pdf_path = convert_docx_to_pdf(docx_path, temp_dir)
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            background=BackgroundTask(cleanup_files, docx_path, pdf_path, temp_dir),
+        )
+    except HTTPException:
+        cleanup_files(docx_path, temp_dir)
+        raise

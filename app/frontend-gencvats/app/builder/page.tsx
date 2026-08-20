@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CVDataState, SelectedCVContent } from "@/types";
+import { CVDataState, LLMProvider, SelectedCVContent } from "@/types";
 import Image from "next/image"; 
 
 // Import Components
@@ -68,6 +68,7 @@ const normalizeUrl = (raw: string) => {
 
 export default function BuilderPage() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [llmProvider, setLlmProvider] = useState<LLMProvider>("local");
   const [cvData, setCvData] = useState<CVDataState>({
     Personal_Info: { Nama: "", Email: "", HP: "", LinkedIn: "", Alamat: "", Portfolio: "", Summary: "" },
     Education: [], Experience: [], Projects: [],
@@ -194,6 +195,17 @@ export default function BuilderPage() {
             </Link>
           </div>
           <div className="builder-topbar-right">
+            <label className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+              <span>AI</span>
+              <select
+                value={llmProvider}
+                onChange={(event) => setLlmProvider(event.target.value as LLMProvider)}
+                className="cursor-pointer rounded-lg border px-3 py-2 bg-[color-mix(in_oklab,var(--color-surface)_96%,white)] text-[var(--foreground)]"
+              >
+                <option value="local">Local LM Studio</option>
+                <option value="groq">Groq API</option>
+              </select>
+            </label>
             <ThemeToggle variant="inline" />
           </div>
         </div>
@@ -274,6 +286,7 @@ export default function BuilderPage() {
                 cvData={cvData}
                 setCvData={setCvData}
                 apiUrl={apiUrl}
+                llmProvider={llmProvider}
                 nextStep={nextStep}
               />
             )}
@@ -284,6 +297,7 @@ export default function BuilderPage() {
                 setCvData={setCvData}
                 nextStep={nextStep}
                 apiUrl={apiUrl}
+                llmProvider={llmProvider}
                 prevStep={prevStep}
               />
             )}
@@ -294,6 +308,7 @@ export default function BuilderPage() {
                 setCvData={setCvData}
                 nextStep={nextStep}
                 apiUrl={apiUrl}
+                llmProvider={llmProvider}
                 prevStep={prevStep}
               />
             )}
@@ -304,6 +319,7 @@ export default function BuilderPage() {
                 setCvData={setCvData}
                 nextStep={nextStep}
                 apiUrl={apiUrl}
+                llmProvider={llmProvider}
                 prevStep={prevStep}
               />
             )}
@@ -313,6 +329,7 @@ export default function BuilderPage() {
                 cvData={cvData} 
                 setCvData={setCvData} 
                 apiUrl={apiUrl} 
+                llmProvider={llmProvider}
                 nextStep={nextStep} 
                 prevStep={prevStep} 
                 selectedContent={selectedContent} 
@@ -326,6 +343,7 @@ export default function BuilderPage() {
                 setCvData={setCvData}
                 selectedContent={selectedContent}
                 apiUrl={apiUrl}
+                llmProvider={llmProvider}
                 prevStep={prevStep}
               />
             )}

@@ -1,16 +1,52 @@
 import json
+import os
+from pathlib import Path
 from openai import OpenAI
+from dotenv import load_dotenv
 from lib.file_process import encode_image
 
-LM_STUDIO_URL = "http://127.0.0.1:1234/v1"
-API_KEY = "lm-studio"
-MODEL_ID = "qwen/qwen3-vl-4b" 
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-def get_client():
-    return OpenAI(base_url=LM_STUDIO_URL, api_key=API_KEY)
+DEFAULT_PROVIDER = "local"
+LOCAL_LLM_BASE_URL = "http://127.0.0.1:1234/v1"
+LOCAL_LLM_API_KEY = "lm-studio"
+LOCAL_LLM_MODEL = "qwen/qwen3-vl-4b"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
-def run_ai_ocr(image, jenis):
-    client = get_client()
+def get_llm_provider():
+    return os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER).strip().lower()
+
+def get_client(provider=None):
+    selected_provider = (provider or get_llm_provider()).strip().lower()
+
+    if selected_provider == "groq":
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise RuntimeError("GROQ_API_KEY belum diatur di environment.")
+        return OpenAI(
+            base_url=os.getenv("GROQ_BASE_URL", GROQ_BASE_URL),
+            api_key=api_key,
+        )
+
+    return OpenAI(
+        base_url=os.getenv("LOCAL_LLM_BASE_URL", LOCAL_LLM_BASE_URL),
+        api_key=os.getenv("LOCAL_LLM_API_KEY", LOCAL_LLM_API_KEY),
+    )
+
+def get_model_id(provider=None):
+    selected_provider = (provider or get_llm_provider()).strip().lower()
+    if selected_provider == "groq":
+        model = os.getenv("GROQ_MODEL")
+        if not model:
+            raise RuntimeError("GROQ_MODEL belum diatur di environment.")
+        return model
+
+    return os.getenv("LOCAL_LLM_MODEL", LOCAL_LLM_MODEL)
+
+def run_ai_ocr(image, jenis, provider=None):
+    provider = provider or get_llm_provider()
+    client = get_client(provider)
+    model_id = get_model_id(provider)
     base64_img = encode_image(image)
     
     if jenis == "ijazah":
@@ -55,7 +91,7 @@ def run_ai_ocr(image, jenis):
 
     try:
         response = client.chat.completions.create(
-            model=MODEL_ID,
+            model=model_id,
             messages=[{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}]}],
             temperature=0.1, max_tokens=8192,
         )
@@ -74,7 +110,7 @@ IT_DS_KEYWORDS = [
     "fullstack", "data mining", "big data", "business intelligence",
 ]
 
-def validate_it_ds_relevance(ocr_result, jenis):
+def validate_it_ds_relevance(ocr_result, jenis, provider=None):
     text = json.dumps(ocr_result, ensure_ascii=False).lower()
     matched_keywords = [keyword for keyword in IT_DS_KEYWORDS if keyword in text]
     if matched_keywords:
@@ -85,7 +121,9 @@ def validate_it_ds_relevance(ocr_result, jenis):
             "reason": f"Terdeteksi kata kunci: {', '.join(matched_keywords[:5])}.",
         }
 
-    client = get_client()
+    provider = provider or get_llm_provider()
+    client = get_client(provider)
+    model_id = get_model_id(provider)
     prompt = f"""
     Klasifikasikan apakah data OCR dokumen {jenis} berikut relevan untuk bidang IT dan Data Science.
 
@@ -104,7 +142,7 @@ def validate_it_ds_relevance(ocr_result, jenis):
 
     try:
         response = client.chat.completions.create(
-            model=MODEL_ID,
+            model=model_id,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.001,
             max_tokens=512,
@@ -126,8 +164,10 @@ def validate_it_ds_relevance(ocr_result, jenis):
             "reason": "Validasi relevansi IT & Data Science tidak dapat dipastikan.",
         }
 
-def enhance_final_cv_llm(data, language="English"):
-    client = get_client()
+def enhance_final_cv_llm(data, language="English", provider=None):
+    provider = provider or get_llm_provider()
+    client = get_client(provider)
+    model_id = get_model_id(provider)
     
     prompt = f"""
     Bertindaklah sebagai Expert CV Resume Writer. Poles konten CV berikut agar ATS-Friendly dan profesional dalam bahasa {language}.
@@ -154,7 +194,7 @@ def enhance_final_cv_llm(data, language="English"):
     
     try:
         response = client.chat.completions.create(
-            model=MODEL_ID,
+            model=model_id,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.001, max_tokens=8192,
         )
