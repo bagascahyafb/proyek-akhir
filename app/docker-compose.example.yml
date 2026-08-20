@@ -9,6 +9,16 @@ services:
       - "8000:8000"
     volumes:
       - uploaded_files:/app/uploaded_files
+  frontend:
+    build:
+      context: ./frontend-gencvats
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
 
 volumes:
   uploaded_files:
