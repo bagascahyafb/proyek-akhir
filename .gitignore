@@ -31,3 +31,5 @@ playwright-report/
 test-results/
 tests/
 load-tests/
+/app/secrets/*
+!/app/secrets/README.md

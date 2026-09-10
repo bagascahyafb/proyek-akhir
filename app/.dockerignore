@@ -10,6 +10,7 @@ env/
 frontend-gencvats/
 load-tests/
 uploaded_files/
+secrets/
 bin/
 
 *.ipynb

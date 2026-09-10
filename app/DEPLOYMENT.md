@@ -16,10 +16,10 @@ Hanya Tailscale Funnel yang menerima trafik internet. Frontend hanya bind ke loo
 - Akses internet keluar melalui HTTPS/port 443 untuk Tailscale dan Groq.
 - Minimal 2 GB RAM kosong untuk backend; 4 GB total server lebih nyaman untuk LibreOffice dan Poppler.
 
-Isi `.env` dengan Groq API key dan konfigurasi berikut:
+Isi `.env` dengan konfigurasi berikut. API key production akan disimpan terpisah sebagai file secret:
 
 ```dotenv
-GROQ_API_KEY=gsk_xxx
+GROQ_API_KEY_SECRET_FILE=./secrets/groq_api_key
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 GROQ_MODEL=qwen/qwen3.8-27b
 
@@ -40,18 +40,24 @@ FRONTEND_MEMORY_LIMIT=512m
 FRONTEND_CPU_LIMIT=1.0
 ```
 
-Batasi file secret agar hanya user deploy yang dapat membacanya:
+Siapkan file secret. Perintah `read -s` menjaga key agar tidak tampil di terminal:
 
 ```bash
+cd app
+install -m 700 -d secrets
+read -rsp "Groq API key: " GROQ_SECRET && printf '\n'
+printf '%s' "$GROQ_SECRET" > secrets/groq_api_key
+unset GROQ_SECRET
+chmod 644 secrets/groq_api_key
 chmod 600 .env
+test -s secrets/groq_api_key
 ```
 
-Compose memasang `GROQ_API_KEY` sebagai file secret di container backend, bukan sebagai environment variable container.
+Direktori `secrets` memakai mode `0700`, jadi user host lain tetap tidak dapat membuka file tersebut. File memakai mode `0644` agar backend non-root dapat membacanya ketika Docker Compose lama memasangnya sebagai bind mount. Compose memasang key ke `/run/secrets/groq_api_key`, bukan sebagai environment variable container. Setelah deployment berhasil, hapus baris `GROQ_API_KEY=...` lama dari `.env` agar key tidak tersimpan ganda.
 
 ## Deploy
 
 ```bash
-cd app
 docker compose build --pull
 docker compose up -d
 docker compose ps

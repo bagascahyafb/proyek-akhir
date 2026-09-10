@@ -87,4 +87,4 @@ volumes:
 
 secrets:
   groq_api_key:
-    environment: GROQ_API_KEY
+    file: ${GROQ_API_KEY_SECRET_FILE:-./secrets/groq_api_key}
