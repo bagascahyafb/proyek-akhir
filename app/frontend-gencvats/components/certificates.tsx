@@ -10,6 +10,7 @@ import {
   isDuplicateItem,
   normalizeDuplicateValue,
 } from "./duplicate-data";
+import { postOcrWithRateLimitRetry } from "./ocr-upload";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -331,7 +332,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
           label: `Mengupload ${file.name}...`,
         });
         try {
-          const res = await axios.post(`${apiUrl}/extract-ocr`, formData, {
+          const res = await postOcrWithRateLimitRetry(`${apiUrl}/extract-ocr`, formData, {
             headers: {
               "Content-Type": "multipart/form-data",
               "ngrok-skip-browser-warning": "true",

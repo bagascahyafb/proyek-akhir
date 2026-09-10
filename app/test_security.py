@@ -81,8 +81,26 @@ class SecuritySmokeTest(unittest.TestCase):
         self.assertEqual(result["Nama_Lengkap"], "Test User")
         request = client.chat.completions.create.call_args.kwargs
         self.assertEqual(request["reasoning_effort"], "none")
+        self.assertEqual(request["max_tokens"], 768)
         self.assertEqual(request["response_format"]["type"], "json_schema")
         self.assertTrue(request["response_format"]["json_schema"]["strict"])
+
+    def test_relevance_fallback_does_not_call_groq(self):
+        with patch.object(ai_lib, "get_client") as get_client:
+            result = ai_lib.validate_it_ds_relevance(
+                {"Judul_Sertifikat": "Pelatihan Kepemimpinan"},
+                "sertifikat",
+            )
+
+        get_client.assert_not_called()
+        self.assertEqual(result["status"], "not_relevant")
+
+    def test_relevance_keyword_is_checked_locally(self):
+        result = ai_lib.validate_it_ds_relevance(
+            {"Judul_Sertifikat": "Machine Learning Dasar"},
+            "sertifikat",
+        )
+        self.assertEqual(result["status"], "relevant")
 
     def test_signed_upload_url(self):
         filename = f"{'a' * 32}.jpg"

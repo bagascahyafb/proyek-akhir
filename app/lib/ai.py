@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from dotenv import load_dotenv
 from lib.file_process import encode_image
 
@@ -10,6 +10,12 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 logger = logging.getLogger("gencvats.ai")
+
+
+class AIRateLimitError(Exception):
+    def __init__(self, retry_after=20):
+        self.retry_after = max(1, min(int(retry_after), 120))
+        super().__init__("Groq rate limit exceeded")
 
 
 def get_secret(name):
@@ -80,6 +86,16 @@ def _log_ai_failure(operation, error):
         getattr(error, "code", None),
         getattr(error, "request_id", None),
     )
+
+
+def _get_retry_after(error):
+    response = getattr(error, "response", None)
+    headers = getattr(response, "headers", {}) or {}
+    raw_value = headers.get("retry-after", "20")
+    try:
+        return max(1, int(float(raw_value)))
+    except (TypeError, ValueError):
+        return 20
 
 def run_ai_ocr(image, jenis):
     client = get_client()
@@ -155,11 +171,14 @@ def run_ai_ocr(image, jenis):
             model=model_id,
             messages=[{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}]}],
             temperature=0.1,
-            max_tokens=2048,
+            max_tokens=768,
             response_format=response_format,
             **_qwen_instruct_options(model_id),
         )
         return _parse_json_content(response)
+    except RateLimitError as e:
+        _log_ai_failure("OCR", e)
+        raise AIRateLimitError(_get_retry_after(e)) from e
     except Exception as e:
         _log_ai_failure("OCR", e)
         return None
@@ -185,56 +204,12 @@ def validate_it_ds_relevance(ocr_result, jenis):
             "reason": f"Terdeteksi kata kunci: {', '.join(matched_keywords[:5])}.",
         }
 
-    client = get_client()
-    model_id = get_model_id()
-    prompt = f"""
-    Klasifikasikan apakah data OCR dokumen {jenis} berikut relevan untuk bidang IT dan Data Science.
-
-    Anggap relevan jika berkaitan dengan informatika, sistem informasi, ilmu komputer, software engineering,
-    data science, machine learning, AI, cybersecurity, cloud, jaringan, database, UI/UX, pemrograman,
-    data analytics, atau skill teknologi digital yang dekat dengan bidang tersebut.
-
-    DATA OCR:
-    {json.dumps(ocr_result, ensure_ascii=False)}
-
-    Output wajib JSON murni dengan keys:
-    - "is_relevant": boolean
-    - "confidence": number antara 0 dan 1
-    - "reason": string singkat dalam Bahasa Indonesia
-    """
-
-    try:
-        response = client.chat.completions.create(
-            model=model_id,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.001,
-            max_tokens=512,
-            response_format=_strict_object_format(
-                "it_ds_relevance",
-                {
-                    "is_relevant": {"type": "boolean"},
-                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-                    "reason": {"type": "string"},
-                },
-            ),
-            **_qwen_instruct_options(model_id),
-        )
-        parsed = _parse_json_content(response)
-        is_relevant = bool(parsed.get("is_relevant"))
-        return {
-            "is_relevant": is_relevant,
-            "status": "relevant" if is_relevant else "not_relevant",
-            "confidence": parsed.get("confidence"),
-            "reason": parsed.get("reason") or "AI tidak memberi alasan rinci.",
-        }
-    except Exception as e:
-        _log_ai_failure("validasi relevansi", e)
-        return {
-            "is_relevant": False,
-            "status": "unknown",
-            "confidence": None,
-            "reason": "Validasi relevansi IT & Data Science tidak dapat dipastikan.",
-        }
+    return {
+        "is_relevant": False,
+        "status": "not_relevant",
+        "confidence": 0.65,
+        "reason": "Tidak ditemukan kata kunci IT atau Data Science pada hasil OCR.",
+    }
 
 def enhance_final_cv_llm(data, language="English"):
     client = get_client()

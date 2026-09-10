@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 # Import library logic
-from lib.ai import run_ai_ocr, enhance_final_cv_llm, validate_it_ds_relevance
+from lib.ai import AIRateLimitError, run_ai_ocr, enhance_final_cv_llm, validate_it_ds_relevance
 from lib.doc_gen import generate_ats_docx
 from lib.file_process import validate_name_detailed
 import uuid
@@ -348,7 +348,14 @@ async def extract_ocr(
 
         # 3. Jalankan AI OCR
         logger.info("Mengirim dokumen ke layanan OCR.")
-        ocr_result = run_ai_ocr(image_to_process, jenis)
+        try:
+            ocr_result = run_ai_ocr(image_to_process, jenis)
+        except AIRateLimitError as error:
+            raise HTTPException(
+                status_code=429,
+                detail="Batas pemakaian Groq tercapai. Tunggu sebentar lalu coba lagi.",
+                headers={"Retry-After": str(error.retry_after)},
+            ) from error
         
         if not ocr_result:
              # Kadang AI return None kalau API Key salah atau kuota habis

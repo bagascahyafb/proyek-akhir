@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import axios from "axios";
+import { postOcrWithRateLimitRetry } from "./ocr-upload";
 import { StepProps, UploadedDocument } from "@/types";
 import { BuilderLoadingOverlay, useModal, CustomModal } from "./custommodal";
 import { ArrowBackwardIcon, ArrowForwardIcon, EditIcon, EyeIcon, FileUploadOutline, TrashIcon } from "./icons";
@@ -163,7 +164,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         });
 
         try {
-          const res = await axios.post(`${apiUrl}/extract-ocr`, formData, {
+          const res = await postOcrWithRateLimitRetry(`${apiUrl}/extract-ocr`, formData, {
             onUploadProgress: (event) => {
               const loaded = event.total ? event.loaded / event.total : 0;
               const overall = ((fileIndex + loaded) / validFiles.length) * 100;
