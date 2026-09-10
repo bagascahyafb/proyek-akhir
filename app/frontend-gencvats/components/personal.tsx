@@ -162,7 +162,7 @@ export default function Step1Personal({ cvData, setCvData, nextStep }: StepProps
 
         <div>
           <label className="block text-sm font-bold text-[color-mix(in_oklab,var(--foreground)_88%,white)] mb-2">Nomor HP</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="personal-phone-grid grid grid-cols-3 gap-2">
             <select
               value={phoneCode}
               onChange={(e) => updatePhone(e.target.value, phoneNumber)}
