@@ -7,7 +7,6 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from fastapi.responses import Response
-from fastapi.middleware.cors import CORSMiddleware
 from starlette.background import BackgroundTask
 from pydantic import BaseModel
 import io
@@ -35,17 +34,15 @@ UPLOAD_DIR = UPLOAD_DIR.resolve()
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    missing = [name for name in ("GROQ_API_KEY", "GROQ_MODEL") if not os.getenv(name)]
+    if missing:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Konfigurasi Groq belum lengkap: {', '.join(missing)}",
+        )
+    return {"status": "ok", "provider": "groq"}
 
 # --- KONFIGURASI PATH POPPLER ---
 LOCAL_POPPLER_PATH = BASE_DIR / "bin" / "poppler-25.07.0" / "Library" / "bin"
@@ -62,7 +59,6 @@ class CVData(BaseModel):
     Certifications: list
     Awards: list
     Language: str = "English"
-    LLM_Provider: str | None = None
 
 
 def validate_upload_size(upload_file: UploadFile) -> None:
@@ -134,7 +130,6 @@ async def extract_ocr(
     file: UploadFile = File(...), 
     jenis: str = Form(...),
     target_name: str = Form(""),
-    llm_provider: str = Form(""),
 ):
     original_filename = file.filename or "uploaded-file"
     safe_original_name = os.path.basename(original_filename)
@@ -192,8 +187,7 @@ async def extract_ocr(
 
         # 3. Jalankan AI OCR
         print(f"🤖 Sending to AI ({jenis})...")
-        selected_provider = llm_provider.strip().lower() or None
-        ocr_result = run_ai_ocr(image_to_process, jenis, selected_provider)
+        ocr_result = run_ai_ocr(image_to_process, jenis)
         
         if not ocr_result:
              # Kadang AI return None kalau API Key salah atau kuota habis
@@ -221,7 +215,7 @@ async def extract_ocr(
             }
 
         print("✅ Done!")
-        relevance_info = validate_it_ds_relevance(ocr_result, jenis, selected_provider)
+        relevance_info = validate_it_ds_relevance(ocr_result, jenis)
         document_info = {
             "fileName": safe_original_name,
             "fileUrl": f"/uploads/{stored_filename}",
@@ -257,7 +251,6 @@ async def generate_docx(data: CVData):
         cv_dict = data.model_dump()
         
         raw_language = cv_dict.pop("Language", None)
-        cv_dict.pop("LLM_Provider", None)
         language = raw_language if raw_language else "English"
         
         doc = generate_ats_docx(cv_dict, language)
@@ -285,8 +278,7 @@ async def enhance_cv(data: CVData):
     try:
         cv_dict = data.model_dump()
         language = cv_dict.pop("Language", "English")
-        llm_provider = cv_dict.pop("LLM_Provider", None)
-        result = enhance_final_cv_llm(cv_dict, language, llm_provider)
+        result = enhance_final_cv_llm(cv_dict, language)
         return result
     except Exception as e:
         traceback.print_exc()

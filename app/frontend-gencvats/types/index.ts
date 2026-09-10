@@ -1,6 +1,4 @@
 // types/index.ts
-export type LLMProvider = "local" | "groq";
-
 export interface UploadedDocument {
   fileName: string;
   fileUrl: string;
@@ -50,7 +48,6 @@ export interface StepProps {
   cvData: CVDataState;
   setCvData: React.Dispatch<React.SetStateAction<CVDataState>>;
   apiUrl: string;
-  llmProvider?: LLMProvider;
   nextStep?: () => void;
   prevStep?: () => void;
 }

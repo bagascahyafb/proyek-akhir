@@ -41,7 +41,6 @@ export default function Step5Review({
   cvData,
   setCvData,
   apiUrl,
-  llmProvider = "local",
   nextStep,
   prevStep,
   selectedContent,
@@ -81,10 +80,7 @@ export default function Step5Review({
     setStatusMsg("AI sedang memoles CV...");
 
     try {
-      const res = await axios.post(`${apiUrl}/enhance-cv`, {
-        ...cvData,
-        LLM_Provider: llmProvider,
-      }, {
+      const res = await axios.post(`${apiUrl}/enhance-cv`, cvData, {
         headers: { "ngrok-skip-browser-warning": "true" }
       });
       setCvData({
