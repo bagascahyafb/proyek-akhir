@@ -9,8 +9,19 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
+
+def get_secret(name):
+    secret_file = os.getenv(f"{name}_FILE")
+    if secret_file:
+        try:
+            return Path(secret_file).read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    return os.getenv(name, "").strip()
+
+
 def get_client():
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = get_secret("GROQ_API_KEY")
     if not api_key:
         raise RuntimeError("GROQ_API_KEY belum diatur di environment.")
     return OpenAI(

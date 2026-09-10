@@ -1,14 +1,22 @@
-# Deployment Docker dengan Tailscale
+# Deployment Publik dengan Docker dan Tailscale Funnel
 
-## Yang perlu disiapkan
+## Arsitektur
 
-- Server Linux yang sudah terpasang Docker Engine dan Docker Compose.
-- Tailscale aktif di server dan perangkat yang akan membuka aplikasi.
-- MagicDNS dan HTTPS Certificates aktif pada halaman DNS di Tailscale Admin Console.
-- Groq API key yang masih aktif.
-- Akses internet keluar dari server ke `api.groq.com` melalui HTTPS/port 443.
+```text
+Internet -> Tailscale Funnel (HTTPS) -> 127.0.0.1:3000 -> frontend -> backend:8000 -> Groq API
+```
 
-Isi `.env` berikut dan jangan commit file tersebut:
+Hanya Tailscale Funnel yang menerima trafik internet. Frontend hanya bind ke loopback host dan backend hanya tersedia di jaringan internal Compose. Browser memakai `/api`, jadi tidak perlu mengatur CORS atau URL backend publik.
+
+## Persiapan Server
+
+- Linux dengan Docker Engine dan Docker Compose terbaru.
+- Tailscale 1.38.3 atau lebih baru.
+- MagicDNS, HTTPS Certificates, dan Funnel aktif di Tailscale Admin Console.
+- Akses internet keluar melalui HTTPS/port 443 untuk Tailscale dan Groq.
+- Minimal 2 GB RAM kosong untuk backend; 4 GB total server lebih nyaman untuk LibreOffice dan Poppler.
+
+Isi `.env` dengan Groq API key dan konfigurasi berikut:
 
 ```dotenv
 GROQ_API_KEY=gsk_xxx
@@ -17,61 +25,102 @@ GROQ_MODEL=qwen/qwen3.8-27b
 
 UPLOAD_DIR=/app/uploaded_files
 LIBREOFFICE_BINARY=libreoffice
+UPLOAD_RETENTION_HOURS=24
+UPLOAD_URL_TTL_SECONDS=3600
+RATE_LIMIT_PER_MINUTE=12
+GLOBAL_RATE_LIMIT_PER_MINUTE=30
+GLOBAL_RATE_LIMIT_PER_HOUR=300
+
 PUBLIC_API_URL=/api
 BACKEND_INTERNAL_URL=http://backend:8000
 APP_PORT=3000
-BACKEND_PORT=8000
+BACKEND_MEMORY_LIMIT=2g
+BACKEND_CPU_LIMIT=2.0
+FRONTEND_MEMORY_LIMIT=512m
+FRONTEND_CPU_LIMIT=1.0
 ```
 
-`PUBLIC_API_URL` harus tetap `/api`. Frontend meneruskan request ke backend lewat jaringan Docker, sehingga tidak perlu mencari URL backend dan tidak perlu mengatur CORS.
+Batasi file secret agar hanya user deploy yang dapat membacanya:
+
+```bash
+chmod 600 .env
+```
+
+Compose memasang `GROQ_API_KEY` sebagai file secret di container backend, bukan sebagai environment variable container.
 
 ## Deploy
 
 ```bash
 cd app
-docker compose up -d --build
+docker compose build --pull
+docker compose up -d
 docker compose ps
 curl http://127.0.0.1:3000/api/health
 ```
 
-Respons healthcheck yang benar:
+Respons yang benar:
 
 ```json
 {"status":"ok","provider":"groq"}
 ```
 
-## Membuat URL Tailscale
+## Membuka ke Internet
 
-Jalankan pada host server, bukan di dalam container:
+Jalankan di host server, bukan di dalam container:
 
 ```bash
-tailscale status
-tailscale ip -4
-tailscale serve --bg 3000
-tailscale serve status
+tailscale funnel --bg 3000
+tailscale funnel status
 ```
 
-Perintah terakhir menampilkan URL HTTPS, misalnya:
+Status akan menampilkan URL publik HTTPS seperti:
 
 ```text
 https://nama-server.nama-tailnet.ts.net
 ```
 
-URL tersebut hanya dapat dibuka oleh perangkat yang masuk ke tailnet dan diizinkan oleh ACL Tailscale. Compose mengikat port 3000 dan 8000 ke `127.0.0.1`, jadi aplikasi tidak terbuka langsung ke LAN atau internet.
+Siapa pun dapat membuka URL tersebut tanpa akun Tailscale. Tidak perlu membuka port 3000 atau 8000 pada router maupun firewall.
 
-Untuk menghentikan akses Tailscale Serve:
+Untuk host Linux yang memakai UFW, pertahankan trafik publik masuk dalam keadaan tertutup dan izinkan administrasi dari tailnet:
 
 ```bash
-tailscale serve reset
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow in on tailscale0
+sudo ufw enable
+sudo ufw status verbose
 ```
 
-## Update dan pemeriksaan
+Pastikan akses Tailscale sudah bekerja sebelum mengaktifkan UFW agar sesi administrasi tidak terkunci. Jangan menambahkan rule publik untuk port 3000 atau 8000.
+
+Untuk menutup akses publik:
 
 ```bash
-git pull
-cd app
-docker compose up -d --build
+tailscale funnel reset
+```
+
+## Proteksi yang Aktif
+
+- Endpoint mahal dibatasi per client dan secara global.
+- Request lebih dari 6 MB ditolak; file upload dibatasi 5 MB.
+- Upload hanya menerima PDF, JPEG, dan PNG berdasarkan signature file.
+- Gambar dibatasi 25 megapixel dan konversi PDF memiliki timeout.
+- Preview memakai URL bertanda tangan yang berlaku satu jam.
+- File upload lama diperiksa dan dihapus otomatis oleh healthcheck setelah 24 jam.
+- API docs dimatikan di production dan error internal tidak dikirim ke browser.
+- Container berjalan sebagai user non-root, read-only, tanpa Linux capabilities, dan memiliki limit resource.
+- Security headers dan log rotation aktif.
+
+## Operasional Rutin
+
+```bash
 docker compose logs --tail=100 backend frontend
+docker compose build --pull
+docker compose up -d
+cd frontend-gencvats
+npm audit --omit=dev
 ```
 
-File upload disimpan di volume Docker `uploaded_files`. Jangan hapus volume tersebut jika file lama masih diperlukan.
+Perbarui OS, Docker, Tailscale, image dasar, dan dependency aplikasi secara berkala. Rotasi Groq key jika pernah masuk log, chat, screenshot, atau repository. Pantau pemakaian dan batas biaya pada Groq Console.
+
+Karena pengguna mengunggah dokumen pribadi dan dokumen dikirim ke Groq untuk OCR, UI meminta persetujuan pengguna sebelum upload. Lengkapi aplikasi publik dengan halaman kebijakan privasi yang menjelaskan tujuan pemrosesan, masa simpan, serta cara meminta penghapusan data.

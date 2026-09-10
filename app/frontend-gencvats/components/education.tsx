@@ -14,6 +14,7 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(null);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { modalProps, showAlert, showConfirm, showSuccess } = useModal();
@@ -75,6 +76,14 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
 
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+    if (!privacyConsent) {
+      showAlert(
+        "Persetujuan diperlukan",
+        "Setujui pemrosesan dokumen oleh Groq AI sebelum mengunggah file."
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     const oversized = files.filter((file) => file.size > MAX_FILE_SIZE_BYTES);
     const oversizedDetails = oversized.map(
@@ -435,34 +444,45 @@ export default function Step2Education({ cvData, setCvData, apiUrl, nextStep, pr
         </div>
       {/* ================= UPLOAD FORM ================= */}
       {activeTab === "upload" && (
-        <div key="tab-upload" className="builder-inner-panel p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
-          <input 
-              type="file" 
-              ref={fileInputRef}
-              onChange={handleUpload} 
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-              disabled={loading} 
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png" 
-          />
-          <div className="flex flex-col items-center">
-            <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
-            <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Upload ijazah</p>
-            <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG. Maks. 5 MB per file.</p>
-            {uploadProgress && (
-              <div className="mt-4 w-full max-w-sm">
-                <div className="mb-1 flex items-center justify-between text-xs font-semibold text-[color-mix(in_oklab,var(--foreground)_68%,white)]">
-                  <span>{uploadProgress.label}</span>
-                  <span>{uploadProgress.percent}%</span>
+        <div key="tab-upload" className="space-y-3">
+          <label className="flex cursor-pointer items-start gap-3 text-left text-sm text-[color-mix(in_oklab,var(--foreground)_78%,white)]">
+            <input
+              type="checkbox"
+              checked={privacyConsent}
+              onChange={(event) => setPrivacyConsent(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+            />
+            <span>Saya setuju dokumen dikirim ke Groq AI untuk dibaca dan disimpan sementara untuk preview.</span>
+          </label>
+          <div className="builder-inner-panel p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={loading}
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png"
+            />
+            <div className="flex flex-col items-center">
+              <FileUploadOutline className="mb-3 text-[color-mix(in_oklab,var(--foreground)_55%,white)]" />
+              <p className="font-bold text-[color-mix(in_oklab,var(--foreground)_78%,white)]">Upload ijazah</p>
+              <p className="text-xs text-[color-mix(in_oklab,var(--foreground)_55%,white)] mt-1">PDF, JPG, PNG. Maks. 5 MB per file.</p>
+              {uploadProgress && (
+                <div className="mt-4 w-full max-w-sm">
+                  <div className="mb-1 flex items-center justify-between text-xs font-semibold text-[color-mix(in_oklab,var(--foreground)_68%,white)]">
+                    <span>{uploadProgress.label}</span>
+                    <span>{uploadProgress.percent}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
+                      style={{ width: `${uploadProgress.percent}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--color-soft)_55%,white)]">
-                  <div
-                    className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-300"
-                    style={{ width: `${uploadProgress.percent}%` }}
-                  />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

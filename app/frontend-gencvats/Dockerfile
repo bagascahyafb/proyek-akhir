@@ -23,9 +23,11 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 ENV BACKEND_INTERNAL_URL=http://backend:8000
 
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+COPY --chown=node:node --from=builder /app/.next/standalone ./
+COPY --chown=node:node --from=builder /app/.next/static ./.next/static
+COPY --chown=node:node --from=builder /app/public ./public
+
+USER node
 
 EXPOSE 3000
 

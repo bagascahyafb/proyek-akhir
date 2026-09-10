@@ -53,6 +53,7 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
   const [activeTab, setActiveTab] = useState<"upload" | "manual">("upload");
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(null);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [uploadCategory, setUploadCategory] = useState<"Keahlian" | "Penghargaan">("Keahlian");
@@ -119,6 +120,14 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
 
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+    if (!privacyConsent) {
+      showAlert(
+        "Persetujuan diperlukan",
+        "Setujui pemrosesan dokumen oleh Groq AI sebelum mengunggah file."
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     const oversized = files.filter((file) => file.size > MAX_FILE_SIZE_BYTES);
     const oversizedDetails = oversized.map(
@@ -670,6 +679,16 @@ export default function Step4Certificates({ cvData, setCvData, apiUrl, nextStep,
               </label>
             </div>
           </div>
+
+          <label className="flex cursor-pointer items-start gap-3 text-left text-sm text-[color-mix(in_oklab,var(--foreground)_78%,white)]">
+            <input
+              type="checkbox"
+              checked={privacyConsent}
+              onChange={(event) => setPrivacyConsent(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+            />
+            <span>Saya setuju dokumen dikirim ke Groq AI untuk dibaca dan disimpan sementara untuk preview.</span>
+          </label>
 
           <div className="builder-inner-panel p-8 border-2 border-dashed border-[color-mix(in_oklab,var(--color-soft)_75%,white)] rounded-xl bg-[color-mix(in_oklab,var(--color-surface)_85%,white)] text-center hover:bg-[color-mix(in_oklab,var(--color-soft)_35%,white)] transition relative">
             <input

@@ -12,14 +12,21 @@ RUN apt-get update \
         fonts-dejavu \
     && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --system --gid 10001 gencvats \
+    && useradd --system --uid 10001 --gid gencvats --create-home gencvats
+
 COPY requirements-backend.txt .
 RUN pip install --no-cache-dir -r requirements-backend.txt
 
-COPY api.py .
-COPY lib ./lib
+COPY --chown=gencvats:gencvats api.py .
+COPY --chown=gencvats:gencvats lib ./lib
 
-RUN mkdir -p /app/uploaded_files
+RUN mkdir -p /app/uploaded_files \
+    && chown -R gencvats:gencvats /app/uploaded_files
+
+ENV HOME=/tmp
+USER gencvats
 
 EXPOSE 8000
 
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--limit-concurrency", "32", "--backlog", "64", "--timeout-keep-alive", "5", "--no-server-header"]

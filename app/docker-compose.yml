@@ -9,16 +9,35 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
+    init: true
     environment:
       UPLOAD_DIR: /app/uploaded_files
+      APP_ENV: production
+      GROQ_API_KEY_FILE: /run/secrets/groq_api_key
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
+      LIBREOFFICE_BINARY: ${LIBREOFFICE_BINARY:-libreoffice}
+      UPLOAD_RETENTION_HOURS: ${UPLOAD_RETENTION_HOURS:-24}
+      UPLOAD_URL_TTL_SECONDS: ${UPLOAD_URL_TTL_SECONDS:-3600}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-12}
+      GLOBAL_RATE_LIMIT_PER_MINUTE: ${GLOBAL_RATE_LIMIT_PER_MINUTE:-30}
+      GLOBAL_RATE_LIMIT_PER_HOUR: ${GLOBAL_RATE_LIMIT_PER_HOUR:-300}
+    secrets:
+      - groq_api_key
     expose:
       - "8000"
-    ports:
-      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
       - uploaded_files:/app/uploaded_files
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-2g}
+    cpus: ${BACKEND_CPU_LIMIT:-2.0}
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -37,11 +56,23 @@ services:
         BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8000}
     environment:
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8000}
+    init: true
     depends_on:
       backend:
         condition: service_healthy
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+      - /app/.next/cache:size=128m,uid=1000,gid=1000,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: ${FRONTEND_MEMORY_LIMIT:-512m}
+    cpus: ${FRONTEND_CPU_LIMIT:-1.0}
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -53,3 +84,7 @@ services:
 
 volumes:
   uploaded_files:
+
+secrets:
+  groq_api_key:
+    environment: GROQ_API_KEY
