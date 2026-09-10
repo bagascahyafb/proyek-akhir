@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 from openai import OpenAI
@@ -8,6 +9,7 @@ from lib.file_process import encode_image
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+logger = logging.getLogger("gencvats.ai")
 
 
 def get_secret(name):
@@ -35,12 +37,66 @@ def get_model_id():
         raise RuntimeError("GROQ_MODEL belum diatur di environment.")
     return model
 
+
+def _qwen_instruct_options(model_id):
+    if model_id in {"qwen/qwen3.6-27b", "qwen/qwen3.8-27b"}:
+        return {"reasoning_effort": "none"}
+    return {}
+
+
+def _strict_object_format(name, properties):
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": name,
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": properties,
+                "required": list(properties),
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
+def _parse_json_content(response):
+    content = response.choices[0].message.content or ""
+    content = content.replace("```json", "").replace("```", "").strip()
+    if not content:
+        raise ValueError("empty model response")
+    parsed = json.loads(content)
+    if not isinstance(parsed, dict):
+        raise ValueError("model response is not an object")
+    return parsed
+
+
+def _log_ai_failure(operation, error):
+    logger.warning(
+        "Groq %s gagal: type=%s status=%s code=%s request_id=%s",
+        operation,
+        type(error).__name__,
+        getattr(error, "status_code", None),
+        getattr(error, "code", None),
+        getattr(error, "request_id", None),
+    )
+
 def run_ai_ocr(image, jenis):
     client = get_client()
     model_id = get_model_id()
     base64_img = encode_image(image)
     
     if jenis == "ijazah":
+        response_format = _strict_object_format(
+            "ijazah_ocr",
+            {
+                "Nama_Lengkap": {"type": "string"},
+                "Jurusan": {"type": "string"},
+                "Gelar": {"type": "string"},
+                "Tahun_Lulus": {"type": "string"},
+                "Universitas": {"type": "string"},
+            },
+        )
         prompt = """
         Lakukan OCR dan ekstraksi entitas dari gambar ijazah ini.
 
@@ -55,6 +111,20 @@ def run_ai_ocr(image, jenis):
         Jika data tidak ditemukan, isi "". Jangan mengarang data, tapi perbaiki typo jika jelas salah. Hanya output JSON murni.
         """
     else:
+        response_format = _strict_object_format(
+            "sertifikat_ocr",
+            {
+                "Nama_Peserta": {"type": "string"},
+                "Judul_Sertifikat": {"type": "string"},
+                "id_sertifikat": {"type": "string"},
+                "Lembaga_Penerbit": {"type": "string"},
+                "Skill": {"type": "string"},
+                "Tahun_Sertifikat": {"type": "string"},
+                "Masa_Berlaku": {"type": "string"},
+                "Tipe_Skill": {"type": "string", "enum": ["Hard Skill", "Soft Skill", ""]},
+                "Kategori": {"type": "string", "enum": ["Sertifikasi", "Penghargaan", ""]},
+            },
+        )
         prompt = """
         
         Lakukan OCR dan ekstraksi entitas dari gambar sertifikat ini.
@@ -84,11 +154,14 @@ def run_ai_ocr(image, jenis):
         response = client.chat.completions.create(
             model=model_id,
             messages=[{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}]}],
-            temperature=0.1, max_tokens=8192,
+            temperature=0.1,
+            max_tokens=2048,
+            response_format=response_format,
+            **_qwen_instruct_options(model_id),
         )
-        content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
-        return json.loads(content)
+        return _parse_json_content(response)
     except Exception as e:
+        _log_ai_failure("OCR", e)
         return None
 
 IT_DS_KEYWORDS = [
@@ -136,9 +209,17 @@ def validate_it_ds_relevance(ocr_result, jenis):
             messages=[{"role": "user", "content": prompt}],
             temperature=0.001,
             max_tokens=512,
+            response_format=_strict_object_format(
+                "it_ds_relevance",
+                {
+                    "is_relevant": {"type": "boolean"},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "reason": {"type": "string"},
+                },
+            ),
+            **_qwen_instruct_options(model_id),
         )
-        content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
-        parsed = json.loads(content)
+        parsed = _parse_json_content(response)
         is_relevant = bool(parsed.get("is_relevant"))
         return {
             "is_relevant": is_relevant,
@@ -147,6 +228,7 @@ def validate_it_ds_relevance(ocr_result, jenis):
             "reason": parsed.get("reason") or "AI tidak memberi alasan rinci.",
         }
     except Exception as e:
+        _log_ai_failure("validasi relevansi", e)
         return {
             "is_relevant": False,
             "status": "unknown",
@@ -185,10 +267,12 @@ def enhance_final_cv_llm(data, language="English"):
         response = client.chat.completions.create(
             model=model_id,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.001, max_tokens=8192,
+            temperature=0.001,
+            max_tokens=8192,
+            response_format={"type": "json_object"},
+            **_qwen_instruct_options(model_id),
         )
-        content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
-        return json.loads(content)
+        return _parse_json_content(response)
     except Exception as e:
-        print(f"Gagal melakukan enhance AI: {e}")
+        _log_ai_failure("enhance", e)
         return data # Kembalikan data asli kalau error

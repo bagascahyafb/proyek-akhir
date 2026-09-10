@@ -6,6 +6,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 os.environ["APP_ENV"] = "production"
 os.environ["GROQ_API_KEY"] = "test-key"
@@ -16,8 +18,10 @@ os.environ["UPLOAD_DIR"] = _upload_dir.name
 
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
+from PIL import Image
 
 import api
+from lib import ai as ai_lib
 
 
 class SecuritySmokeTest(unittest.TestCase):
@@ -51,6 +55,34 @@ class SecuritySmokeTest(unittest.TestCase):
         with self.assertRaises(api.HTTPException) as error:
             api.validate_upload(invalid)
         self.assertEqual(error.exception.status_code, 400)
+
+    def test_ocr_uses_strict_groq_json_schema(self):
+        response = SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content=(
+                            '{"Nama_Lengkap":"Test User","Jurusan":"Informatika",'
+                            '"Gelar":"S.Kom","Tahun_Lulus":"2025",'
+                            '"Universitas":"Universitas Test"}'
+                        )
+                    )
+                )
+            ]
+        )
+        client = MagicMock()
+        client.chat.completions.create.return_value = response
+
+        with patch.object(ai_lib, "get_client", return_value=client), patch.object(
+            ai_lib, "get_model_id", return_value="qwen/qwen3.8-27b"
+        ):
+            result = ai_lib.run_ai_ocr(Image.new("RGB", (20, 20), "white"), "ijazah")
+
+        self.assertEqual(result["Nama_Lengkap"], "Test User")
+        request = client.chat.completions.create.call_args.kwargs
+        self.assertEqual(request["reasoning_effort"], "none")
+        self.assertEqual(request["response_format"]["type"], "json_schema")
+        self.assertTrue(request["response_format"]["json_schema"]["strict"])
 
     def test_signed_upload_url(self):
         filename = f"{'a' * 32}.jpg"
